@@ -1,0 +1,6 @@
+{
+  "name": "SENSEI 2027 - Sistem Pelaporan Sosialisasi PPDB",
+  "description": "Sistem Informasi Pelaporan Sosialisasi PPDB Nasional SENSEI 2027 SMART Ekselensia Indonesia untuk 14 wilayah mitra daerah dan admin pusat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
