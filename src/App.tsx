@@ -151,18 +151,24 @@ export default function App() {
       | Omit<SosialisasiReport, 'id' | 'createdAt' | 'updatedAt'>
       | Omit<SosialisasiReport, 'id' | 'createdAt' | 'updatedAt'>[]
   ) => {
-    if (Array.isArray(data)) {
-      const createdList = await api.createBatchReports(data);
-      showToast(`Berhasil menyimpan ${createdList.length} laporan sekolah ke cloud database!`, 'success');
-    } else if (editingReport) {
-      const updated = await api.updateReport(editingReport.id, data);
-      showToast(`Laporan ${updated.sekolah} berhasil diperbarui!`, 'success');
-    } else {
-      const created = await api.createReport(data);
-      showToast(`Laporan ${created.sekolah} berhasil disimpan ke cloud!`, 'success');
+    try {
+      if (Array.isArray(data)) {
+        const createdList = await api.createBatchReports(data);
+        showToast(`Berhasil menyimpan ${createdList.length} laporan sekolah ke cloud database!`, 'success');
+      } else if (editingReport) {
+        const updated = await api.updateReport(editingReport.id, data);
+        showToast(`Laporan ${updated.sekolah} berhasil diperbarui!`, 'success');
+      } else {
+        const created = await api.createReport(data);
+        showToast(`Laporan ${created.sekolah} berhasil disimpan ke cloud!`, 'success');
+      }
+      setEditingReport(null);
+      await fetchData(true);
+    } catch (err: any) {
+      console.error('Save report error:', err);
+      showToast(err.message || 'Gagal menyimpan laporan', 'error');
+      throw err;
     }
-    setEditingReport(null);
-    fetchData();
   };
 
   const [batchDeleteCandidates, setBatchDeleteCandidates] = useState<string[] | null>(null);
@@ -239,17 +245,17 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       
-      {/* Toast Floating Notifications */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none">
+      {/* Toast Floating Notifications - Positioned safely at top right so it NEVER blocks bottom buttons */}
+      <div className="fixed top-5 right-5 z-[9999] flex flex-col space-y-2 pointer-events-none max-w-sm">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto px-4 py-3 rounded-xl shadow-xl border text-xs sm:text-sm font-semibold flex items-center space-x-2.5 transition-all animate-in slide-in-from-bottom duration-200 ${
+            className={`pointer-events-auto px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-semibold flex items-center space-x-2.5 transition-all animate-in slide-in-from-top-2 duration-200 ${
               toast.type === 'success'
-                ? 'bg-emerald-900 text-emerald-100 border-emerald-700'
+                ? 'bg-emerald-950 text-emerald-100 border-emerald-600 shadow-emerald-950/40'
                 : toast.type === 'error'
-                ? 'bg-red-900 text-red-100 border-red-700'
-                : 'bg-slate-900 text-slate-100 border-slate-700'
+                ? 'bg-red-950 text-red-100 border-red-600 shadow-red-950/40'
+                : 'bg-slate-900 text-slate-100 border-slate-700 shadow-slate-950/40'
             }`}
           >
             {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}

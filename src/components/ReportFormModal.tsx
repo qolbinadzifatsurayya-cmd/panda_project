@@ -169,7 +169,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
       setSingleKabupaten(initKab);
       setDefaultTanggal(new Date().toISOString().split('T')[0]);
       
-      // Initialize with 3 empty rows for quick batch input
+      // Initialize with 3 rows for quick batch input
       setTableRows([
         createEmptyRow(initKab, 'SD'),
         createEmptyRow(initKab, 'SD'),
@@ -244,7 +244,20 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
     );
   };
 
-  // Apply default Kabupaten/Kota to all rows
+  // When defaultKabupaten changes, automatically update any row whose kabupaten is empty or equals the previous default
+  const handleDefaultKabupatenChange = (val: string) => {
+    const prevDefault = defaultKabupaten;
+    setDefaultKabupaten(val);
+    setTableRows((prev) =>
+      prev.map((r) =>
+        !r.kabupatenKota.trim() || r.kabupatenKota === prevDefault
+          ? { ...r, kabupatenKota: val }
+          : r
+      )
+    );
+  };
+
+  // Apply default Kabupaten/Kota to all rows manually
   const handleApplyKabupatenToAll = () => {
     if (!defaultKabupaten.trim()) return;
     setTableRows((prev) =>
@@ -317,9 +330,8 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
     }
   };
 
-  // Submit Handler
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Manual Submit Trigger (Direct function bypasses HTML form submit bugs)
+  const handleManualSubmit = async () => {
     setErrorMsg('');
 
     if (inputMode === 'single') {
@@ -328,28 +340,17 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
         setErrorMsg('Nama sekolah wajib diisi');
         return;
       }
-      if (!singleKabupaten.trim()) {
-        setErrorMsg('Kabupaten/Kota kunjungan wajib diisi');
-        return;
-      }
-      if (!singlePic.trim()) {
-        setErrorMsg('PIC sekolah/panitia wajib diisi');
-        return;
-      }
-      if (!singleKontak.trim()) {
-        setErrorMsg('Nomor kontak wajib diisi');
-        return;
-      }
+      const effectiveKab = singleKabupaten.trim() || defaultKabupaten.trim() || wilayah;
 
       try {
         setIsSubmitting(true);
         await onSubmit({
           wilayah,
-          kabupatenKota: singleKabupaten.trim(),
+          kabupatenKota: effectiveKab,
           jenjang: singleJenjang,
           sekolah: singleSekolah.trim(),
-          pic: singlePic.trim(),
-          kontak: singleKontak.trim(),
+          pic: singlePic.trim() || '-',
+          kontak: singleKontak.trim() || '-',
           jumlahAudience: Number(singleAudience) || 0,
           jumlahPendaftar: Number(singlePendaftar) || 0,
           tanggalKunjungan: singleTanggal,
@@ -365,34 +366,32 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
       }
     } else {
       // Table Mode Validation
-      const validRows = tableRows.filter((r) => r.sekolah.trim().length > 0);
+      const validRows = tableRows.filter((r) => r.sekolah && r.sekolah.trim().length > 0);
 
       if (validRows.length === 0) {
-        setErrorMsg('Mohon isi minimal 1 baris Nama Sekolah yang valid pada tabel.');
+        setErrorMsg('Silakan isi minimal 1 Nama Sekolah pada baris tabel sebelum menekan simpan.');
         return;
       }
 
-      // Check if any valid row misses kabupaten
-      const missingKab = validRows.find((r) => !r.kabupatenKota.trim());
-      if (missingKab) {
-        setErrorMsg(`Kabupaten/Kota belum diisi untuk sekolah "${missingKab.sekolah}".`);
-        return;
-      }
+      const payloadList = validRows.map((r) => {
+        const effectiveKab =
+          r.kabupatenKota.trim() || defaultKabupaten.trim() || wilayah;
 
-      const payloadList = validRows.map((r) => ({
-        wilayah,
-        kabupatenKota: r.kabupatenKota.trim() || defaultKabupaten.trim(),
-        jenjang: r.jenjang,
-        sekolah: r.sekolah.trim(),
-        pic: r.pic.trim() || '-',
-        kontak: r.kontak.trim() || '-',
-        jumlahAudience: Number(r.jumlahAudience) || 0,
-        jumlahPendaftar: Number(r.jumlahPendaftar) || 0,
-        tanggalKunjungan: r.tanggalKunjungan || defaultTanggal,
-        catatan: r.catatan ? r.catatan.trim() : '',
-        dokumentasiUrl: r.dokumentasiList.length > 0 ? r.dokumentasiList[0] : undefined,
-        dokumentasiList: r.dokumentasiList,
-      }));
+        return {
+          wilayah,
+          kabupatenKota: effectiveKab,
+          jenjang: r.jenjang,
+          sekolah: r.sekolah.trim(),
+          pic: r.pic.trim() || '-',
+          kontak: r.kontak.trim() || '-',
+          jumlahAudience: Math.max(0, Number(r.jumlahAudience) || 0),
+          jumlahPendaftar: Math.max(0, Number(r.jumlahPendaftar) || 0),
+          tanggalKunjungan: r.tanggalKunjungan || defaultTanggal,
+          catatan: r.catatan ? r.catatan.trim() : '',
+          dokumentasiUrl: r.dokumentasiList.length > 0 ? r.dokumentasiList[0] : undefined,
+          dokumentasiList: r.dokumentasiList,
+        };
+      });
 
       try {
         setIsSubmitting(true);
@@ -406,8 +405,14 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
     }
   };
 
+  // Submit Handler
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleManualSubmit();
+  };
+
   // Table summary counts
-  const filledRowsCount = tableRows.filter((r) => r.sekolah.trim().length > 0).length;
+  const filledRowsCount = tableRows.filter((r) => r.sekolah && r.sekolah.trim().length > 0).length;
   const tableTotalAudience = tableRows.reduce(
     (sum, r) => sum + (Number(r.jumlahAudience) || 0),
     0
@@ -416,18 +421,18 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
     (sum, r) => sum + (Number(r.jumlahPendaftar) || 0),
     0
   );
-  const tableTotalSD = tableRows.filter((r) => r.sekolah.trim() && r.jenjang === 'SD').length;
-  const tableTotalSMP = tableRows.filter((r) => r.sekolah.trim() && r.jenjang === 'SMP').length;
+  const tableTotalSD = tableRows.filter((r) => r.sekolah && r.sekolah.trim() && r.jenjang === 'SD').length;
+  const tableTotalSMP = tableRows.filter((r) => r.sekolah && r.sekolah.trim() && r.jenjang === 'SMP').length;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-2 sm:p-4 md:p-6 flex items-start sm:items-center justify-center animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-2 sm:p-4 md:p-6 flex items-center justify-center animate-in fade-in duration-200">
       <div
-        className={`bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-h-[94vh] flex flex-col overflow-hidden my-auto transition-all ${
+        className={`bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-h-[90vh] flex flex-col overflow-hidden my-auto transition-all ${
           inputMode === 'table' ? 'max-w-6xl' : 'max-w-2xl'
         }`}
       >
-        {/* Sticky Fixed Header - Always visible at top */}
-        <div className="px-5 sm:px-6 py-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 shadow-sm border-b border-slate-800 z-10">
+        {/* Sticky Fixed Header - ALWAYS VISIBLE AT TOP WITH PRIMARY SAVE BUTTON */}
+        <div className="px-4 sm:px-6 py-3.5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 shadow-md border-b border-slate-800 z-20">
           <div className="flex items-center space-x-2.5">
             <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg shrink-0">
               {inputMode === 'table' ? <TableIcon className="w-5 h-5" /> : <School className="w-5 h-5" />}
@@ -445,7 +450,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                   {wilayah}
                 </span>
               </div>
-              <p className="text-xs text-slate-300 mt-0.5">
+              <p className="text-xs text-slate-300 mt-0.5 hidden xs:block">
                 {inputMode === 'table'
                   ? 'Input beberapa kunjungan sekolah sekaligus dalam satu tabel praktis'
                   : 'Sistem PPDB SENSEI 2027 • SMART Ekselensia Indonesia'}
@@ -454,39 +459,65 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
           </div>
 
           <div className="flex items-center space-x-2 self-end sm:self-auto">
-            {/* Mode Toggle Button (Only when not editing an existing single report) */}
+            {/* Mode Toggle Button */}
             {!initialData && (
               <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
                 <button
                   type="button"
                   onClick={() => setInputMode('table')}
-                  className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all ${
                     inputMode === 'table'
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'text-slate-300 hover:text-white'
                   }`}
                 >
                   <TableIcon className="w-3.5 h-3.5" />
-                  <span>Tabel Multi-Sekolah</span>
+                  <span className="hidden sm:inline">Tabel Multi</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setInputMode('single')}
-                  className={`px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center space-x-1.5 transition-all ${
                     inputMode === 'single'
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'text-slate-300 hover:text-white'
                   }`}
                 >
                   <LayoutList className="w-3.5 h-3.5" />
-                  <span>Formulir Satuan</span>
+                  <span className="hidden sm:inline">Satuan</span>
                 </button>
               </div>
             )}
 
+            {/* TOP HEADER PRIMARY SAVE BUTTON: ALWAYS ACCESSIBLE */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                handleManualSubmit();
+              }}
+              disabled={isSubmitting || isUploadingPhoto}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 rounded-xl text-xs font-extrabold shadow-md flex items-center space-x-1.5 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+              title="Simpan Laporan Sekarang"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {isSubmitting
+                  ? 'Menyimpan...'
+                  : inputMode === 'table'
+                  ? `Simpan Semua (${filledRowsCount}) Sekolah`
+                  : 'Simpan Laporan'}
+              </span>
+            </button>
+
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              title="Tutup Formulir"
             >
               <X className="w-5 h-5" />
             </button>
@@ -512,18 +543,31 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
         />
 
         {/* Form Body with scrollable content & sticky footer */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
-          
+        <form
+          id="report-modal-form"
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1 overflow-hidden min-h-0"
+        >
+          {/* Sticky Error Notice Banner */}
+          {errorMsg && (
+            <div className="px-5 py-3 bg-red-100 border-b border-red-300 text-red-900 text-xs flex items-center justify-between shrink-0 animate-in slide-in-from-top">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span className="font-bold">{errorMsg}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setErrorMsg('')}
+                className="text-red-700 hover:text-red-900 text-xs font-bold underline"
+              >
+                Tutup
+              </button>
+            </div>
+          )}
+
           {/* Scrollable Container */}
           <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 overscroll-contain">
             
-            {errorMsg && (
-              <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span className="font-medium">{errorMsg}</span>
-              </div>
-            )}
-
             {/* TABEL MULTI-SEKOLAH MODE */}
             {inputMode === 'table' ? (
               <div className="space-y-4">
@@ -566,9 +610,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                       <input
                         type="text"
                         value={defaultKabupaten}
-                        onChange={(e) => {
-                          setDefaultKabupaten(e.target.value);
-                        }}
+                        onChange={(e) => handleDefaultKabupatenChange(e.target.value)}
                         placeholder="Contoh: Kab. Bogor / Kota Bandung"
                         list="kabupaten-list-multi"
                         className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none"
@@ -674,7 +716,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                                 type="text"
                                 value={row.kabupatenKota}
                                 onChange={(e) => handleUpdateRow(row.id, 'kabupatenKota', e.target.value)}
-                                placeholder="Kabupaten/Kota"
+                                placeholder={defaultKabupaten || 'Kabupaten/Kota'}
                                 className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none"
                               />
                             </td>
@@ -797,14 +839,14 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
 
                   {/* Add Rows Button Row */}
                   <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => handleAddRow(1)}
                         className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-colors shadow-sm"
                       >
                         <Plus className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>+ Tambah 1 Baris Sekolah</span>
+                        <span>+ Tambah 1 Baris</span>
                       </button>
                       <button
                         type="button"
@@ -822,29 +864,40 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                         <Plus className="w-3 h-3 text-slate-400" />
                         <span>+ 5 Baris</span>
                       </button>
+
+                      {/* QUICK SAVE BUTTON IN TABLE TOOLBAR */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleManualSubmit();
+                        }}
+                        disabled={isSubmitting || isUploadingPhoto}
+                        className="ml-2 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-600 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Save className="w-3.5 h-3.5" />
+                        )}
+                        <span>Simpan {filledRowsCount} Sekolah</span>
+                      </button>
                     </div>
 
                     {/* Table live summary pill */}
                     <div className="flex items-center space-x-3 text-xs bg-white px-3 py-1.5 rounded-xl border border-slate-200">
                       <span className="font-semibold text-slate-700">
-                        Total {filledRowsCount} Sekolah Terisi:
+                        {filledRowsCount} Sekolah Terisi:
                       </span>
                       <span className="text-emerald-700 font-bold">{tableTotalSD} SD</span>
                       <span>•</span>
                       <span className="text-teal-700 font-bold">{tableTotalSMP} SMP</span>
                       <span>•</span>
-                      <span className="text-slate-800 font-bold">{tableTotalAudience.toLocaleString('id-ID')} Audience</span>
+                      <span className="text-slate-800 font-bold">{tableTotalAudience.toLocaleString('id-ID')} Aud.</span>
                       <span>•</span>
-                      <span className="text-amber-800 font-extrabold">{tableTotalPendaftar.toLocaleString('id-ID')} Siswa Daftar</span>
+                      <span className="text-amber-800 font-extrabold">{tableTotalPendaftar.toLocaleString('id-ID')} Daftar</span>
                     </div>
                   </div>
-                </div>
-
-                <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center space-x-2">
-                  <Database className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    Semua sekolah pada baris di atas akan otomatis disimpan ke database cloud secara bersamaan saat Anda menekan tombol <strong>Simpan Semua Laporan Sekolah</strong>.
-                  </span>
                 </div>
               </div>
             ) : (
@@ -967,7 +1020,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                   {/* PIC */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      PIC Sekolah / Panitia Sosialisasi <span className="text-red-500">*</span>
+                      PIC Sekolah / Panitia Sosialisasi
                     </label>
                     <div className="relative">
                       <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -976,7 +1029,6 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                         value={singlePic}
                         onChange={(e) => setSinglePic(e.target.value)}
                         placeholder="Contoh: Bpk. Ahmad Yani S.Pd"
-                        required
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none"
                       />
                     </div>
@@ -985,7 +1037,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                   {/* Kontak */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Kontak (No. HP / WhatsApp) <span className="text-red-500">*</span>
+                      Kontak (No. HP / WhatsApp)
                     </label>
                     <div className="relative">
                       <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -994,7 +1046,6 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                         value={singleKontak}
                         onChange={(e) => setSingleKontak(e.target.value)}
                         placeholder="Contoh: 081234567890"
-                        required
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none"
                       />
                     </div>
@@ -1005,7 +1056,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                   {/* Jumlah Audience */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Jumlah Audience Sosialisasi (Orang) <span className="text-red-500">*</span>
+                      Jumlah Audience Sosialisasi (Orang)
                     </label>
                     <div className="relative">
                       <Users className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -1019,7 +1070,6 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                           )
                         }
                         placeholder="Jumlah siswa & guru hadir"
-                        required
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none"
                       />
                     </div>
@@ -1028,7 +1078,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                   {/* Jumlah Siswa yang Daftar */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Jumlah Siswa yang Daftar (Orang) <span className="text-red-500">*</span>
+                      Jumlah Siswa yang Daftar (Orang)
                     </label>
                     <div className="relative">
                       <UserCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -1042,7 +1092,6 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
                           )
                         }
                         placeholder="Jumlah siswa mendaftar SENSEI"
-                        required
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 outline-none"
                       />
                     </div>
@@ -1135,33 +1184,45 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
             )}
           </div>
 
-          {/* Sticky Fixed Action Buttons Footer */}
-          <div className="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0 shadow-inner z-10">
-            <div className="text-xs text-slate-500">
-              {inputMode === 'table' ? (
-                <span>
-                  Siap disimpan: <strong>{filledRowsCount}</strong> sekolah
-                </span>
-              ) : (
-                <span>Mode Input Tunggal</span>
-              )}
+          {/* Sticky Fixed Action Buttons Footer - Prominent, High Z-Index, Always Accessible */}
+          <div className="px-5 sm:px-6 py-4 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 shadow-lg z-30">
+            <div className="text-xs text-slate-700 flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                {inputMode === 'table' ? (
+                  <span>
+                    Siap disimpan: <strong>{filledRowsCount}</strong> sekolah ke cloud database
+                  </span>
+                ) : (
+                  <span>Mode Input Formulir Satuan</span>
+                )}
+              </span>
             </div>
 
-            <div className="flex items-center space-x-3">
+            {/* ACTION BUTTONS */}
+            <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting || isUploadingPhoto}
-                className="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-xl transition-colors"
+                className="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
-                type="submit"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleManualSubmit();
+                }}
                 disabled={isSubmitting || isUploadingPhoto}
-                className="px-6 py-2.5 text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center space-x-2 disabled:opacity-50"
+                className="px-6 py-2.5 text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
               >
-                <Save className="w-4 h-4" />
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
                 <span>
                   {isSubmitting
                     ? 'Menyimpan...'

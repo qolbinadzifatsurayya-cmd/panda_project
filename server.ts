@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -340,22 +341,24 @@ app.post('/api/reports', async (req: Request, res: Response) => {
       dokumentasiList,
     } = req.body;
 
-    if (!wilayah || !kabupatenKota || !jenjang || !sekolah || !pic || !kontak) {
+    if (!wilayah || !sekolah) {
       res.status(400).json({
         success: false,
-        message: 'Mohon lengkapi semua kolom wajib (Wilayah, Kab/Kota, Jenjang, Sekolah, PIC, Kontak)',
+        message: 'Mohon lengkapi kolom Wilayah dan Nama Sekolah',
       });
       return;
     }
 
+    const effectiveKab = String(kabupatenKota || wilayah || 'Umum').trim();
+
     const newReport: ReportItem = {
       id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       wilayah: String(wilayah).trim(),
-      kabupatenKota: String(kabupatenKota).trim(),
+      kabupatenKota: effectiveKab,
       jenjang: jenjang === 'SMP' ? 'SMP' : 'SD',
       sekolah: String(sekolah).trim(),
-      pic: String(pic).trim(),
-      kontak: String(kontak).trim(),
+      pic: String(pic || '-').trim(),
+      kontak: String(kontak || '-').trim(),
       jumlahAudience: Math.max(0, Number(jumlahAudience) || 0),
       jumlahPendaftar: Math.max(0, Number(jumlahPendaftar) || 0),
       tanggalKunjungan: tanggalKunjungan || new Date().toISOString().split('T')[0],
@@ -395,13 +398,16 @@ app.post('/api/reports/batch', async (req: Request, res: Response) => {
     const newItems: ReportItem[] = [];
 
     for (const item of reports) {
-      if (!item.wilayah || !item.kabupatenKota || !item.jenjang || !item.sekolah) {
-        continue; // skip incomplete rows
+      if (!item.wilayah || !item.sekolah || String(item.sekolah).trim() === '') {
+        continue; // skip rows without school name
       }
+
+      const effectiveKab = String(item.kabupatenKota || item.wilayah || 'Umum').trim();
+
       const newReport: ReportItem = {
         id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${newItems.length}`,
         wilayah: String(item.wilayah).trim(),
-        kabupatenKota: String(item.kabupatenKota).trim(),
+        kabupatenKota: effectiveKab,
         jenjang: item.jenjang === 'SMP' ? 'SMP' : 'SD',
         sekolah: String(item.sekolah).trim(),
         pic: String(item.pic || '-').trim(),
