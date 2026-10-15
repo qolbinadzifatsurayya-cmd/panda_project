@@ -145,11 +145,16 @@ export default function App() {
     showToast('Berhasil keluar dari akun', 'info');
   };
 
-  // Create or Update report
+  // Create or Update report (Single or Batch Multi-School)
   const handleSaveReport = async (
-    data: Omit<SosialisasiReport, 'id' | 'createdAt' | 'updatedAt'>
+    data:
+      | Omit<SosialisasiReport, 'id' | 'createdAt' | 'updatedAt'>
+      | Omit<SosialisasiReport, 'id' | 'createdAt' | 'updatedAt'>[]
   ) => {
-    if (editingReport) {
+    if (Array.isArray(data)) {
+      const createdList = await api.createBatchReports(data);
+      showToast(`Berhasil menyimpan ${createdList.length} laporan sekolah ke cloud database!`, 'success');
+    } else if (editingReport) {
       const updated = await api.updateReport(editingReport.id, data);
       showToast(`Laporan ${updated.sekolah} berhasil diperbarui!`, 'success');
     } else {

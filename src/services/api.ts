@@ -45,6 +45,19 @@ export const api = {
     return json.data;
   },
 
+  async createBatchReports(reports: Omit<SosialisasiReport, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<SosialisasiReport[]> {
+    const res = await fetch('/api/reports/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reports }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Gagal menyimpan kumpulan laporan sekolah');
+    }
+    return json.data;
+  },
+
   async updateReport(id: string, data: Partial<SosialisasiReport>): Promise<SosialisasiReport> {
     const res = await fetch(`/api/reports/${id}`, {
       method: 'PUT',

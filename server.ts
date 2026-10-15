@@ -382,6 +382,61 @@ app.post('/api/reports', async (req: Request, res: Response) => {
   }
 });
 
+// API: Create multiple reports at once (Multi-school batch input)
+app.post('/api/reports/batch', async (req: Request, res: Response) => {
+  try {
+    const { reports } = req.body;
+    if (!Array.isArray(reports) || reports.length === 0) {
+      res.status(400).json({ success: false, message: 'Daftar laporan sekolah tidak boleh kosong' });
+      return;
+    }
+
+    const current = loadReports();
+    const newItems: ReportItem[] = [];
+
+    for (const item of reports) {
+      if (!item.wilayah || !item.kabupatenKota || !item.jenjang || !item.sekolah) {
+        continue; // skip incomplete rows
+      }
+      const newReport: ReportItem = {
+        id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${newItems.length}`,
+        wilayah: String(item.wilayah).trim(),
+        kabupatenKota: String(item.kabupatenKota).trim(),
+        jenjang: item.jenjang === 'SMP' ? 'SMP' : 'SD',
+        sekolah: String(item.sekolah).trim(),
+        pic: String(item.pic || '-').trim(),
+        kontak: String(item.kontak || '-').trim(),
+        jumlahAudience: Math.max(0, Number(item.jumlahAudience) || 0),
+        jumlahPendaftar: Math.max(0, Number(item.jumlahPendaftar) || 0),
+        tanggalKunjungan: item.tanggalKunjungan || new Date().toISOString().split('T')[0],
+        catatan: item.catatan ? String(item.catatan).trim() : '',
+        dokumentasiUrl: item.dokumentasiUrl ? String(item.dokumentasiUrl).trim() : undefined,
+        dokumentasiList: Array.isArray(item.dokumentasiList) ? item.dokumentasiList : item.dokumentasiUrl ? [item.dokumentasiUrl] : [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      newItems.push(newReport);
+    }
+
+    if (newItems.length === 0) {
+      res.status(400).json({ success: false, message: 'Mohon isi setidaknya 1 nama sekolah yang valid' });
+      return;
+    }
+
+    current.unshift(...newItems);
+    saveReports(current);
+
+    const cfg = loadConfig();
+    if (cfg.syncWithFirebase && cfg.firebaseUrl) {
+      syncToFirebase(current, cfg.firebaseUrl);
+    }
+
+    res.status(201).json({ success: true, count: newItems.length, data: newItems });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // API: Update report
 app.put('/api/reports/:id', async (req: Request, res: Response) => {
   try {
