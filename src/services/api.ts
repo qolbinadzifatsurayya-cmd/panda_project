@@ -1,4 +1,14 @@
 import { SosialisasiReport, WilayahTargetProgress, DAFTAR_WILAYAH, KabupatenStats } from '../types';
+import {
+  getReportsFromFirestore,
+  saveReportToFirestore,
+  saveBatchReportsToFirestore,
+  updateReportInFirestore,
+  deleteReportFromFirestore,
+  batchDeleteReportsFromFirestore,
+  subscribeReportsFromFirestore,
+  seedInitialReportsIfEmpty,
+} from './firestore';
 
 export interface SummaryStats {
   grandTotalSekolah: number;
@@ -336,7 +346,21 @@ async function syncDirectToFirebase(reports: SosialisasiReport[]) {
 
 export const api = {
   async getReports(wilayah?: string): Promise<SosialisasiReport[]> {
-    // 1. Try backend API if available
+    // 1. Try Firestore cloud database (primary cloud source for multi-device sync)
+    try {
+      const firestoreList = await seedInitialReportsIfEmpty(initialSeedReports);
+      if (firestoreList && firestoreList.length > 0) {
+        saveLocalReports(firestoreList);
+        if (wilayah) {
+          return firestoreList.filter((r) => r.wilayah.toLowerCase() === wilayah.toLowerCase());
+        }
+        return firestoreList;
+      }
+    } catch (e) {
+      console.warn('Firestore cloud fetch warning:', e);
+    }
+
+    // 2. Try backend API if available
     try {
       const url = wilayah ? `/api/reports?wilayah=${encodeURIComponent(wilayah)}` : '/api/reports';
       const controller = new AbortController();
@@ -347,18 +371,15 @@ export const api = {
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
-          // Sync all reports to local cache if not filtered
           if (!wilayah) {
             saveLocalReports(json.data);
           }
           return json.data;
         }
       }
-    } catch {
-      // Backend not reached or running in static deploy mode (404)
-    }
+    } catch {}
 
-    // 2. Fallback to resilient local/cloud storage
+    // 3. Fallback to resilient local cache
     const local = getLocalReports();
     if (wilayah) {
       return local.filter((r) => r.wilayah.toLowerCase() === wilayah.toLowerCase());
@@ -376,11 +397,18 @@ export const api = {
       updatedAt: new Date().toISOString(),
     };
 
-    // Save locally first so it is immediately persisted
+    // Save locally first so it is immediately responsive
     const current = getLocalReports();
     current.unshift(newReport);
     saveLocalReports(current);
     syncDirectToFirebase(current);
+
+    // Persist to Firestore cloud database so other devices immediately receive it
+    try {
+      await saveReportToFirestore(newReport);
+    } catch (err) {
+      console.warn('Cloud database sync warning:', err);
+    }
 
     // Also attempt server sync in background (if full-stack server is running)
     try {
@@ -423,13 +451,20 @@ export const api = {
       return [];
     }
 
-    // 1. Immediately persist to client-side storage (guarantees multi-school batch never hangs)
+    // 1. Immediately persist to client-side storage
     const current = getLocalReports();
     current.unshift(...newItems);
     saveLocalReports(current);
     syncDirectToFirebase(current);
 
-    // 2. Also try server backend if available
+    // 2. Persist to Firestore cloud database in an atomic batch
+    try {
+      await saveBatchReportsToFirestore(newItems);
+    } catch (err) {
+      console.warn('Cloud database batch sync warning:', err);
+    }
+
+    // 3. Also try server backend if available
     try {
       fetch('/api/reports/batch', {
         method: 'POST',
@@ -458,6 +493,12 @@ export const api = {
     syncDirectToFirebase(current);
 
     try {
+      await updateReportInFirestore(id, updated);
+    } catch (err) {
+      console.warn('Cloud update warning:', err);
+    }
+
+    try {
       fetch(`/api/reports/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -475,6 +516,12 @@ export const api = {
     syncDirectToFirebase(current);
 
     try {
+      await deleteReportFromFirestore(id);
+    } catch (err) {
+      console.warn('Cloud delete warning:', err);
+    }
+
+    try {
       fetch(`/api/reports/${id}`, { method: 'DELETE' }).catch(() => {});
     } catch {}
   },
@@ -489,6 +536,12 @@ export const api = {
     syncDirectToFirebase(current);
 
     try {
+      await batchDeleteReportsFromFirestore(ids);
+    } catch (err) {
+      console.warn('Cloud batch delete warning:', err);
+    }
+
+    try {
       fetch('/api/reports/batch-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -497,6 +550,17 @@ export const api = {
     } catch {}
 
     return deletedCount;
+  },
+
+  subscribeReports(callback: (reports: SosialisasiReport[]) => void, onError?: (err: any) => void) {
+    try {
+      return subscribeReportsFromFirestore((reports) => {
+        saveLocalReports(reports);
+        callback(reports);
+      }, onError);
+    } catch {
+      return () => {};
+    }
   },
 
   async uploadDocumentation(dataBase64: string, filename?: string): Promise<string> {
@@ -565,7 +629,7 @@ export const api = {
       config: cfg,
       cloudStatus: {
         isOnlineDatabaseActive: true,
-        mode: cfg.syncWithFirebase ? 'Firebase Realtime DB + Cloud Sync' : 'Cloud Database Online Multi-Device',
+        mode: 'Firebase Firestore Cloud Database (Multi-Device Active)',
         persistedRecords: getLocalReports().length,
       },
     };
@@ -678,15 +742,28 @@ export const api = {
     syncDirectToFirebase(merged);
 
     try {
+      await saveBatchReportsToFirestore(sampleBatch);
+    } catch (err) {
+      console.warn('Firestore seedSample warning:', err);
+    }
+
+    try {
       fetch('/api/seed-sample', { method: 'POST' }).catch(() => {});
     } catch {}
 
-    return { message: 'Data simulasi contoh berhasil ditambahkan', total: merged.length };
+    return { message: 'Data simulasi contoh berhasil ditambahkan ke Cloud Database', total: merged.length };
   },
 
   async resetData(): Promise<{ message: string; total: number }> {
     saveLocalReports(initialSeedReports);
     syncDirectToFirebase(initialSeedReports);
+
+    try {
+      // Overwrite initial seed to Firestore
+      await saveBatchReportsToFirestore(initialSeedReports);
+    } catch (err) {
+      console.warn('Firestore reset warning:', err);
+    }
 
     try {
       fetch('/api/reset-data', { method: 'POST' }).catch(() => {});

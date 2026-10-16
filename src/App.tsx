@@ -110,12 +110,22 @@ export default function App() {
     fetchData();
   }, [fetchData]);
 
-  // Real-time synchronization polling every 10 seconds for multi-device sync
+  // Real-time synchronization via Firestore snapshot listener for multi-device sync
   useEffect(() => {
+    const unsub = api.subscribeReports((reports) => {
+      setAllReports(reports);
+      api.getStats().then((s) => setStats(s)).catch(() => {});
+      setIsLoading(false);
+    });
+
     const timer = setInterval(() => {
       fetchData(true);
-    }, 10000);
-    return () => clearInterval(timer);
+    }, 15000);
+
+    return () => {
+      if (unsub) unsub();
+      clearInterval(timer);
+    };
   }, [fetchData]);
 
   // Persist session

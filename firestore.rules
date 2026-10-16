@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidReport(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.wilayah is string && data.wilayah.size() <= 50 &&
+             data.kabupatenKota is string && data.kabupatenKota.size() <= 100 &&
+             data.jenjang is string && (data.jenjang == 'SD' || data.jenjang == 'SMP') &&
+             data.sekolah is string && data.sekolah.size() > 0 && data.sekolah.size() <= 200 &&
+             data.pic is string && data.pic.size() <= 100 &&
+             data.kontak is string && data.kontak.size() <= 50 &&
+             data.jumlahAudience is number && data.jumlahAudience >= 0 &&
+             data.jumlahPendaftar is number && data.jumlahPendaftar >= 0 &&
+             data.tanggalKunjungan is string && data.tanggalKunjungan.size() <= 30;
+    }
+
+    match /reports/{reportId} {
+      allow read: if true;
+      allow create: if isValidId(reportId) && isValidReport(incoming());
+      allow update: if isValidId(reportId) && isValidReport(incoming());
+      allow delete: if isValidId(reportId);
+    }
+  }
+}

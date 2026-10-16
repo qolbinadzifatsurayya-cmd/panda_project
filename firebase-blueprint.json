@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "report": {
+      "title": "SosialisasiReport",
+      "description": "School visit socialization report for SMART Ekselensia scholarship selection",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the report"
+        },
+        "wilayah": {
+          "type": "string",
+          "description": "Region name out of 14 target regions"
+        },
+        "kabupatenKota": {
+          "type": "string",
+          "description": "Regency or city visited"
+        },
+        "jenjang": {
+          "type": "string",
+          "enum": ["SD", "SMP"],
+          "description": "School level, SD or SMP"
+        },
+        "sekolah": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "School name"
+        },
+        "pic": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Person in charge / school contact"
+        },
+        "kontak": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Contact phone or WhatsApp number"
+        },
+        "jumlahAudience": {
+          "type": "number",
+          "description": "Number of audience members in socialization"
+        },
+        "jumlahPendaftar": {
+          "type": "number",
+          "description": "Number of students registering"
+        },
+        "tanggalKunjungan": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Date of visit (YYYY-MM-DD)"
+        },
+        "catatan": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Additional notes"
+        },
+        "dokumentasiUrl": {
+          "type": "string",
+          "maxLength": 500000,
+          "description": "Documentation image URL or data"
+        },
+        "dokumentasiList": {
+          "type": "array",
+          "description": "Array of documentation photo URLs"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": [
+        "id",
+        "wilayah",
+        "kabupatenKota",
+        "jenjang",
+        "sekolah",
+        "pic",
+        "kontak",
+        "jumlahAudience",
+        "jumlahPendaftar",
+        "tanggalKunjungan"
+      ]
+    }
+  },
+  "firestore": {
+    "/reports/{reportId}": {
+      "schema": "report",
+      "description": "Collection of all socialization visit reports across 14 regions"
+    }
+  }
+}
