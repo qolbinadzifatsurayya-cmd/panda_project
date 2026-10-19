@@ -88,10 +88,8 @@ export default function App() {
   const fetchData = useCallback(async (quiet = false) => {
     try {
       if (!quiet) setIsRefreshing(true);
-      const [reportsData, statsData] = await Promise.all([
-        api.getReports(),
-        api.getStats(),
-      ]);
+      const reportsData = await api.getReports();
+      const statsData = await api.getStats(reportsData);
       setAllReports(reportsData);
       setStats(statsData);
     } catch (err: any) {
@@ -114,7 +112,7 @@ export default function App() {
   useEffect(() => {
     const unsub = api.subscribeReports((reports) => {
       setAllReports(reports);
-      api.getStats().then((s) => setStats(s)).catch(() => {});
+      api.getStats(reports).then((s) => setStats(s)).catch(() => {});
       setIsLoading(false);
     });
 
@@ -186,13 +184,23 @@ export default function App() {
   // Delete single report
   const confirmDelete = async () => {
     if (!deleteCandidate) return;
+    const { id, sekolah } = deleteCandidate;
+    setDeleteCandidate(null);
+
+    // Optimistically update React state immediately so UI updates without waiting
+    setAllReports((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      api.getStats(updated).then((s) => setStats(s)).catch(() => {});
+      return updated;
+    });
+
     try {
-      await api.deleteReport(deleteCandidate.id);
-      showToast(`Laporan ${deleteCandidate.sekolah} berhasil dihapus`, 'info');
-      setDeleteCandidate(null);
-      fetchData();
+      await api.deleteReport(id);
+      showToast(`Laporan ${sekolah} berhasil dihapus`, 'info');
+      await fetchData(true);
     } catch (err: any) {
       showToast(err.message || 'Gagal menghapus laporan', 'error');
+      await fetchData(true);
     }
   };
 
@@ -203,13 +211,24 @@ export default function App() {
 
   const confirmBatchDelete = async () => {
     if (!batchDeleteCandidates || batchDeleteCandidates.length === 0) return;
+    const ids = [...batchDeleteCandidates];
+    setBatchDeleteCandidates(null);
+
+    const idSet = new Set(ids);
+    // Optimistically update React state immediately
+    setAllReports((prev) => {
+      const updated = prev.filter((r) => !idSet.has(r.id));
+      api.getStats(updated).then((s) => setStats(s)).catch(() => {});
+      return updated;
+    });
+
     try {
-      const count = await api.batchDeleteReports(batchDeleteCandidates);
+      const count = await api.batchDeleteReports(ids);
       showToast(`${count} laporan berhasil dihapus dari cloud database`, 'info');
-      setBatchDeleteCandidates(null);
-      fetchData();
+      await fetchData(true);
     } catch (err: any) {
       showToast(err.message || 'Gagal menghapus laporan terpilih', 'error');
+      await fetchData(true);
     }
   };
 

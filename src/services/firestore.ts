@@ -171,26 +171,40 @@ export function subscribeReportsFromFirestore(
 }
 
 /**
- * Seed initial sample reports into Firestore if the collection is empty
+ * Seed initial sample reports into Firestore only on the very first fresh setup.
+ * Once initialized, if the collection is empty because reports were deleted, it will NOT resurrect them.
  */
 export async function seedInitialReportsIfEmpty(initialSeed: SosialisasiReport[]): Promise<SosialisasiReport[]> {
   try {
     const colRef = collection(db, REPORTS_COLLECTION);
     const snap = await getDocs(colRef);
+    const isAlreadyInitialized = typeof window !== 'undefined' && localStorage.getItem('sensei_db_initialized') === 'true';
+
     if (snap.empty) {
-      console.log('Firestore is empty. Seeding initial reports...');
+      if (isAlreadyInitialized) {
+        // User deliberately deleted reports: DO NOT resurrect seed reports!
+        return [];
+      }
+      // Very first setup only
       const batch = writeBatch(db);
       for (const item of initialSeed) {
         batch.set(doc(db, REPORTS_COLLECTION, item.id), item);
       }
       await batch.commit();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sensei_db_initialized', 'true');
+      }
       return initialSeed;
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sensei_db_initialized', 'true');
     }
     const list = snap.docs.map((d) => d.data() as SosialisasiReport);
     list.sort((a, b) => new Date(b.createdAt || b.tanggalKunjungan).getTime() - new Date(a.createdAt || a.tanggalKunjungan).getTime());
     return list;
   } catch (error) {
     console.warn('Firestore initial seeding error, falling back to local:', error);
-    return initialSeed;
+    return [];
   }
 }

@@ -183,18 +183,23 @@ export const initialSeedReports: SosialisasiReport[] = [
 function getLocalReports(): SosialisasiReport[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_REPORTS);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
   } catch (err) {
     console.warn('Error reading from localStorage:', err);
   }
-  // Initialize with seed data
+  // Initialize with seed data only on the first run if not initialized
+  const isInitialized = typeof window !== 'undefined' && localStorage.getItem('sensei_db_initialized') === 'true';
+  if (isInitialized) {
+    return [];
+  }
   try {
     localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(initialSeedReports));
+    localStorage.setItem('sensei_db_initialized', 'true');
   } catch {}
   return initialSeedReports;
 }
@@ -349,8 +354,10 @@ export const api = {
     // 1. Try Firestore cloud database (primary cloud source for multi-device sync)
     try {
       const firestoreList = await seedInitialReportsIfEmpty(initialSeedReports);
-      if (firestoreList && firestoreList.length > 0) {
-        saveLocalReports(firestoreList);
+      if (Array.isArray(firestoreList)) {
+        if (!wilayah) {
+          saveLocalReports(firestoreList);
+        }
         if (wilayah) {
           return firestoreList.filter((r) => r.wilayah.toLowerCase() === wilayah.toLowerCase());
         }
@@ -412,11 +419,11 @@ export const api = {
 
     // Also attempt server sync in background (if full-stack server is running)
     try {
-      fetch('/api/reports', {
+      await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).catch(() => {});
+      });
     } catch {}
 
     return newReport;
@@ -466,11 +473,11 @@ export const api = {
 
     // 3. Also try server backend if available
     try {
-      fetch('/api/reports/batch', {
+      await fetch('/api/reports/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reports: newItems }),
-      }).catch(() => {});
+      });
     } catch {}
 
     return newItems;
@@ -499,30 +506,33 @@ export const api = {
     }
 
     try {
-      fetch(`/api/reports/${id}`, {
+      await fetch(`/api/reports/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).catch(() => {});
+      });
     } catch {}
 
     return updated;
   },
 
   async deleteReport(id: string): Promise<void> {
+    // 1. Remove from local storage cache
     let current = getLocalReports();
     current = current.filter((r) => r.id !== id);
     saveLocalReports(current);
     syncDirectToFirebase(current);
 
+    // 2. Remove from Firestore cloud database
     try {
       await deleteReportFromFirestore(id);
     } catch (err) {
       console.warn('Cloud delete warning:', err);
     }
 
+    // 3. Await backend deletion so server data/reports.json is kept in exact sync
     try {
-      fetch(`/api/reports/${id}`, { method: 'DELETE' }).catch(() => {});
+      await fetch(`/api/reports/${id}`, { method: 'DELETE' });
     } catch {}
   },
 
@@ -535,18 +545,20 @@ export const api = {
     saveLocalReports(current);
     syncDirectToFirebase(current);
 
+    // 1. Remove from Firestore cloud database
     try {
       await batchDeleteReportsFromFirestore(ids);
     } catch (err) {
       console.warn('Cloud batch delete warning:', err);
     }
 
+    // 2. Await backend batch deletion
     try {
-      fetch('/api/reports/batch-delete', {
+      await fetch('/api/reports/batch-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
-      }).catch(() => {});
+      });
     } catch {}
 
     return deletedCount;
@@ -590,24 +602,9 @@ export const api = {
     return dataBase64;
   },
 
-  async getStats(): Promise<StatsResponse> {
-    // 1. Try server endpoint
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch('/api/stats', { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.summary) {
-          return json;
-        }
-      }
-    } catch {}
-
-    // 2. Compute directly from current reports
-    const current = getLocalReports();
+  async getStats(customReports?: SosialisasiReport[]): Promise<StatsResponse> {
+    // Compute directly from active reports (never returns stale deleted items)
+    const current = customReports !== undefined ? customReports : getLocalReports();
     return computeStatsFromReports(current);
   },
 

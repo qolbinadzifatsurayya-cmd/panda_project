@@ -32,21 +32,6 @@
     "updatedAt": "2026-10-15T09:00:51.107Z"
   },
   {
-    "id": "rep-jbr-01",
-    "wilayah": "Jabar",
-    "kabupatenKota": "Kab. Bogor",
-    "jenjang": "SD",
-    "sekolah": "SDIT Al-Madinah Cibinong",
-    "pic": "Drs. H. Mulyadi",
-    "kontak": "081234567801",
-    "jumlahAudience": 85,
-    "jumlahPendaftar": 14,
-    "tanggalKunjungan": "2026-09-02",
-    "catatan": "Presentasi di aula sekolah, antusiasme siswa kelas 6 sangat tinggi.",
-    "createdAt": "2026-09-02T08:30:00.000Z",
-    "updatedAt": "2026-09-02T08:30:00.000Z"
-  },
-  {
     "id": "rep-jbr-02",
     "wilayah": "Jabar",
     "kabupatenKota": "Kab. Bogor",
