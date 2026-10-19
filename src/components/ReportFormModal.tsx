@@ -355,7 +355,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
           jumlahPendaftar: Number(singlePendaftar) || 0,
           tanggalKunjungan: singleTanggal,
           catatan: singleCatatan.trim(),
-          dokumentasiUrl: singleDokumentasiList.length > 0 ? singleDokumentasiList[0] : undefined,
+          dokumentasiUrl: singleDokumentasiList.length > 0 ? singleDokumentasiList[0] : '',
           dokumentasiList: singleDokumentasiList,
         });
         onClose();
@@ -388,7 +388,7 @@ export const ReportFormModal: React.FC<ReportFormModalProps> = ({
           jumlahPendaftar: Math.max(0, Number(r.jumlahPendaftar) || 0),
           tanggalKunjungan: r.tanggalKunjungan || defaultTanggal,
           catatan: r.catatan ? r.catatan.trim() : '',
-          dokumentasiUrl: r.dokumentasiList.length > 0 ? r.dokumentasiList[0] : undefined,
+          dokumentasiUrl: r.dokumentasiList.length > 0 ? r.dokumentasiList[0] : '',
           dokumentasiList: r.dokumentasiList,
         };
       });

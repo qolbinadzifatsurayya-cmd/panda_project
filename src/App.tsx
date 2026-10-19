@@ -163,12 +163,28 @@ export default function App() {
       if (Array.isArray(data)) {
         const createdList = await api.createBatchReports(data);
         showToast(`Berhasil menyimpan ${createdList.length} laporan sekolah ke cloud database!`, 'success');
+        setAllReports((prev) => {
+          const ids = new Set(createdList.map((c) => c.id));
+          const updated = [...createdList, ...prev.filter((p) => !ids.has(p.id))];
+          api.getStats(updated).then((s) => setStats(s)).catch(() => {});
+          return updated;
+        });
       } else if (editingReport) {
         const updated = await api.updateReport(editingReport.id, data);
         showToast(`Laporan ${updated.sekolah} berhasil diperbarui!`, 'success');
+        setAllReports((prev) => {
+          const updatedList = prev.map((r) => (r.id === updated.id ? updated : r));
+          api.getStats(updatedList).then((s) => setStats(s)).catch(() => {});
+          return updatedList;
+        });
       } else {
         const created = await api.createReport(data);
         showToast(`Laporan ${created.sekolah} berhasil disimpan ke cloud!`, 'success');
+        setAllReports((prev) => {
+          const updated = [created, ...prev.filter((p) => p.id !== created.id)];
+          api.getStats(updated).then((s) => setStats(s)).catch(() => {});
+          return updated;
+        });
       }
       setEditingReport(null);
       await fetchData(true);
@@ -259,7 +275,7 @@ export default function App() {
 
   // Filtered reports for current regional session
   const currentWilayahReports = currentUser.role === 'wilayah' && currentUser.wilayah
-    ? allReports.filter((r) => r.wilayah.toLowerCase() === currentUser.wilayah!.toLowerCase())
+    ? allReports.filter((r) => (r.wilayah || '').trim().toLowerCase() === currentUser.wilayah!.trim().toLowerCase())
     : [];
 
   // Existing kabupaten list for autocomplete

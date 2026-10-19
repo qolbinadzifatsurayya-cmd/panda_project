@@ -205,8 +205,8 @@ const initialSeedReports: ReportItem[] = [
 function loadReports(): ReportItem[] {
   try {
     if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify(initialSeedReports, null, 2), 'utf-8');
-      return initialSeedReports;
+      fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), 'utf-8');
+      return [];
     }
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
     return JSON.parse(raw);

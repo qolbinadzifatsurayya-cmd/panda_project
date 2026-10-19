@@ -79,12 +79,38 @@ export async function getReportsFromFirestore(wilayah?: string): Promise<Sosiali
 }
 
 /**
+ * Sanitize report payload to guarantee valid Firestore data types and prevent undefined fields
+ */
+export function sanitizeReportForFirestore(report: Partial<SosialisasiReport>): SosialisasiReport {
+  return {
+    id: String(report.id || `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
+    wilayah: String(report.wilayah || '').trim(),
+    kabupatenKota: String(report.kabupatenKota || '').trim(),
+    jenjang: report.jenjang === 'SMP' ? 'SMP' : 'SD',
+    sekolah: String(report.sekolah || '').trim(),
+    pic: String(report.pic || '-').trim(),
+    kontak: String(report.kontak || '-').trim(),
+    jumlahAudience: Math.max(0, Number(report.jumlahAudience) || 0),
+    jumlahPendaftar: Math.max(0, Number(report.jumlahPendaftar) || 0),
+    tanggalKunjungan: String(report.tanggalKunjungan || new Date().toISOString().split('T')[0]),
+    catatan: String(report.catatan || '').trim(),
+    dokumentasiUrl: report.dokumentasiUrl ? String(report.dokumentasiUrl) : '',
+    dokumentasiList: Array.isArray(report.dokumentasiList)
+      ? report.dokumentasiList.filter((item): item is string => typeof item === 'string' && item.length > 0)
+      : (report.dokumentasiUrl ? [String(report.dokumentasiUrl)] : []),
+    createdAt: String(report.createdAt || new Date().toISOString()),
+    updatedAt: String(report.updatedAt || new Date().toISOString()),
+  };
+}
+
+/**
  * Save single report to Firestore
  */
 export async function saveReportToFirestore(report: SosialisasiReport): Promise<void> {
-  const path = `${REPORTS_COLLECTION}/${report.id}`;
+  const sanitized = sanitizeReportForFirestore(report);
+  const path = `${REPORTS_COLLECTION}/${sanitized.id}`;
   try {
-    await setDoc(doc(db, REPORTS_COLLECTION, report.id), report);
+    await setDoc(doc(db, REPORTS_COLLECTION, sanitized.id), sanitized);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -98,8 +124,9 @@ export async function saveBatchReportsToFirestore(reports: SosialisasiReport[]):
   try {
     const batch = writeBatch(db);
     for (const item of reports) {
-      const ref = doc(db, REPORTS_COLLECTION, item.id);
-      batch.set(ref, item);
+      const sanitized = sanitizeReportForFirestore(item);
+      const ref = doc(db, REPORTS_COLLECTION, sanitized.id);
+      batch.set(ref, sanitized);
     }
     await batch.commit();
   } catch (error) {
@@ -113,8 +140,15 @@ export async function saveBatchReportsToFirestore(reports: SosialisasiReport[]):
 export async function updateReportInFirestore(id: string, data: Partial<SosialisasiReport>): Promise<void> {
   const path = `${REPORTS_COLLECTION}/${id}`;
   try {
+    const cleanData: Record<string, any> = { ...data, updatedAt: new Date().toISOString() };
+    // Remove any undefined keys to avoid Firestore error
+    Object.keys(cleanData).forEach((key) => {
+      if (cleanData[key] === undefined) {
+        delete cleanData[key];
+      }
+    });
     const ref = doc(db, REPORTS_COLLECTION, id);
-    await setDoc(ref, data, { merge: true });
+    await setDoc(ref, cleanData, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
@@ -171,40 +205,8 @@ export function subscribeReportsFromFirestore(
 }
 
 /**
- * Seed initial sample reports into Firestore only on the very first fresh setup.
- * Once initialized, if the collection is empty because reports were deleted, it will NOT resurrect them.
+ * Safe fetch without auto-resurrecting deleted reports
  */
-export async function seedInitialReportsIfEmpty(initialSeed: SosialisasiReport[]): Promise<SosialisasiReport[]> {
-  try {
-    const colRef = collection(db, REPORTS_COLLECTION);
-    const snap = await getDocs(colRef);
-    const isAlreadyInitialized = typeof window !== 'undefined' && localStorage.getItem('sensei_db_initialized') === 'true';
-
-    if (snap.empty) {
-      if (isAlreadyInitialized) {
-        // User deliberately deleted reports: DO NOT resurrect seed reports!
-        return [];
-      }
-      // Very first setup only
-      const batch = writeBatch(db);
-      for (const item of initialSeed) {
-        batch.set(doc(db, REPORTS_COLLECTION, item.id), item);
-      }
-      await batch.commit();
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('sensei_db_initialized', 'true');
-      }
-      return initialSeed;
-    }
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('sensei_db_initialized', 'true');
-    }
-    const list = snap.docs.map((d) => d.data() as SosialisasiReport);
-    list.sort((a, b) => new Date(b.createdAt || b.tanggalKunjungan).getTime() - new Date(a.createdAt || a.tanggalKunjungan).getTime());
-    return list;
-  } catch (error) {
-    console.warn('Firestore initial seeding error, falling back to local:', error);
-    return [];
-  }
+export async function seedInitialReportsIfEmpty(_initialSeed: SosialisasiReport[]): Promise<SosialisasiReport[]> {
+  return getReportsFromFirestore();
 }

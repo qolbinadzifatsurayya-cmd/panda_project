@@ -192,16 +192,7 @@ function getLocalReports(): SosialisasiReport[] {
   } catch (err) {
     console.warn('Error reading from localStorage:', err);
   }
-  // Initialize with seed data only on the first run if not initialized
-  const isInitialized = typeof window !== 'undefined' && localStorage.getItem('sensei_db_initialized') === 'true';
-  if (isInitialized) {
-    return [];
-  }
-  try {
-    localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(initialSeedReports));
-    localStorage.setItem('sensei_db_initialized', 'true');
-  } catch {}
-  return initialSeedReports;
+  return [];
 }
 
 // Helper: save local reports cache
@@ -351,15 +342,15 @@ async function syncDirectToFirebase(reports: SosialisasiReport[]) {
 
 export const api = {
   async getReports(wilayah?: string): Promise<SosialisasiReport[]> {
-    // 1. Try Firestore cloud database (primary cloud source for multi-device sync)
+    // 1. Primary cloud database: Firestore (multi-device active)
     try {
-      const firestoreList = await seedInitialReportsIfEmpty(initialSeedReports);
+      const firestoreList = await getReportsFromFirestore();
       if (Array.isArray(firestoreList)) {
-        if (!wilayah) {
-          saveLocalReports(firestoreList);
-        }
+        saveLocalReports(firestoreList);
         if (wilayah) {
-          return firestoreList.filter((r) => r.wilayah.toLowerCase() === wilayah.toLowerCase());
+          return firestoreList.filter(
+            (r) => r.wilayah.trim().toLowerCase() === wilayah.trim().toLowerCase()
+          );
         }
         return firestoreList;
       }
@@ -367,7 +358,7 @@ export const api = {
       console.warn('Firestore cloud fetch warning:', e);
     }
 
-    // 2. Try backend API if available
+    // 2. Secondary fallback: backend API server
     try {
       const url = wilayah ? `/api/reports?wilayah=${encodeURIComponent(wilayah)}` : '/api/reports';
       const controller = new AbortController();
@@ -389,7 +380,9 @@ export const api = {
     // 3. Fallback to resilient local cache
     const local = getLocalReports();
     if (wilayah) {
-      return local.filter((r) => r.wilayah.toLowerCase() === wilayah.toLowerCase());
+      return local.filter(
+        (r) => r.wilayah.trim().toLowerCase() === wilayah.trim().toLowerCase()
+      );
     }
     return local;
   },
@@ -397,16 +390,35 @@ export const api = {
   async createReport(
     data: Omit<SosialisasiReport, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<SosialisasiReport> {
+    const now = new Date().toISOString();
     const newReport: SosialisasiReport = {
       ...data,
       id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      wilayah: data.wilayah.trim(),
+      kabupatenKota: data.kabupatenKota.trim(),
+      sekolah: data.sekolah.trim(),
+      pic: data.pic ? data.pic.trim() : '-',
+      kontak: data.kontak ? data.kontak.trim() : '-',
+      jumlahAudience: Math.max(0, Number(data.jumlahAudience) || 0),
+      jumlahPendaftar: Math.max(0, Number(data.jumlahPendaftar) || 0),
+      tanggalKunjungan: data.tanggalKunjungan || now.split('T')[0],
+      catatan: data.catatan ? data.catatan.trim() : '',
+      dokumentasiUrl: data.dokumentasiUrl ? String(data.dokumentasiUrl) : '',
+      dokumentasiList: Array.isArray(data.dokumentasiList)
+        ? data.dokumentasiList.filter(Boolean)
+        : (data.dokumentasiUrl ? [String(data.dokumentasiUrl)] : []),
+      createdAt: now,
+      updatedAt: now,
     };
 
     // Save locally first so it is immediately responsive
     const current = getLocalReports();
-    current.unshift(newReport);
+    const existingIdx = current.findIndex((r) => r.id === newReport.id);
+    if (existingIdx >= 0) {
+      current[existingIdx] = newReport;
+    } else {
+      current.unshift(newReport);
+    }
     saveLocalReports(current);
     syncDirectToFirebase(current);
 
@@ -422,7 +434,7 @@ export const api = {
       await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(newReport),
       });
     } catch {}
 
@@ -442,6 +454,8 @@ export const api = {
       .map((r, idx) => ({
         ...r,
         id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${idx}`,
+        wilayah: r.wilayah.trim(),
+        kabupatenKota: r.kabupatenKota.trim(),
         sekolah: r.sekolah.trim(),
         pic: r.pic ? r.pic.trim() : '-',
         kontak: r.kontak ? r.kontak.trim() : '-',
@@ -449,7 +463,10 @@ export const api = {
         jumlahPendaftar: Math.max(0, Number(r.jumlahPendaftar) || 0),
         tanggalKunjungan: r.tanggalKunjungan || now.split('T')[0],
         catatan: r.catatan ? r.catatan.trim() : '',
-        dokumentasiList: r.dokumentasiList || (r.dokumentasiUrl ? [r.dokumentasiUrl] : []),
+        dokumentasiUrl: r.dokumentasiUrl ? String(r.dokumentasiUrl) : (r.dokumentasiList && r.dokumentasiList[0] ? String(r.dokumentasiList[0]) : ''),
+        dokumentasiList: Array.isArray(r.dokumentasiList)
+          ? r.dokumentasiList.filter(Boolean)
+          : (r.dokumentasiUrl ? [String(r.dokumentasiUrl)] : []),
         createdAt: now,
         updatedAt: now,
       }));
