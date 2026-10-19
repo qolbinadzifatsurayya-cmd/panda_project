@@ -324,39 +324,35 @@ export default function App() {
           /* Halaman Wilayah (Regional View) */
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
             
-            {/* Top Navigation & Quick Switch */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => saveSession({ role: null })}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold transition-colors shadow-sm"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Pilih Wilayah Lain</span>
-                </button>
-                <button
-                  onClick={() => saveSession({ role: 'admin' })}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-xl text-xs font-semibold transition-colors"
-                  title="Pindah ke Dashboard Admin Pusat"
-                >
-                  <span>Buka Admin Pusat</span>
-                </button>
+            {/* Regional Header & Privacy Isolation */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl">
+                  <MapPin className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-base font-extrabold text-slate-900">
+                      Wilayah Kerja: {currentUser.wilayah}
+                    </span>
+                    <span className="text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                      Privasi Wilayah Aktif
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Hanya panitia wilayah {currentUser.wilayah} dan Admin Pusat yang dapat melihat progres wilayah ini.
+                  </p>
+                </div>
               </div>
 
-              {/* Quick Region Selector Dropdown */}
               <div className="flex items-center space-x-2">
-                <span className="text-xs text-slate-500 hidden sm:inline">Ganti Wilayah:</span>
-                <select
-                  value={currentUser.wilayah}
-                  onChange={(e) => handleSelectWilayah(e.target.value as WilayahName)}
-                  className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-red-50 hover:text-red-700 hover:border-red-300 text-slate-700 rounded-xl text-xs font-bold transition-colors shadow-sm cursor-pointer"
                 >
-                  {DAFTAR_WILAYAH.map((w) => (
-                    <option key={w} value={w}>
-                      {w}
-                    </option>
-                  ))}
-                </select>
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Keluar dari Wilayah</span>
+                </button>
               </div>
             </div>
 

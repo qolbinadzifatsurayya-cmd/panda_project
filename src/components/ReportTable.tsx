@@ -18,7 +18,7 @@ import {
   CheckSquare,
   Square
 } from 'lucide-react';
-import { SosialisasiReport } from '../types';
+import { SosialisasiReport, DAFTAR_WILAYAH } from '../types';
 import { ImagePreviewModal } from './ImagePreviewModal';
 
 interface ReportTableProps {
@@ -43,6 +43,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterJenjang, setFilterJenjang] = useState<'ALL' | 'SD' | 'SMP'>('ALL');
   const [filterKabupaten, setFilterKabupaten] = useState<string>('ALL');
+  const [filterWilayah, setFilterWilayah] = useState<string>('ALL');
   const [filterHasPhoto, setFilterHasPhoto] = useState<boolean>(false);
   const [sortField, setSortField] = useState<'tanggal' | 'sekolah' | 'audience' | 'pendaftar'>('tanggal');
   const [sortAsc, setSortAsc] = useState(false);
@@ -79,12 +80,17 @@ export const ReportTable: React.FC<ReportTableProps> = ({
         const matchesKabupaten =
           filterKabupaten === 'ALL' ? true : item.kabupatenKota === filterKabupaten;
 
+        const matchesWilayah =
+          !showWilayahColumn || filterWilayah === 'ALL'
+            ? true
+            : item.wilayah.toLowerCase() === filterWilayah.toLowerCase();
+
         const hasPhoto = Boolean(
           (item.dokumentasiList && item.dokumentasiList.length > 0) || item.dokumentasiUrl
         );
         const matchesPhoto = filterHasPhoto ? hasPhoto : true;
 
-        return matchesSearch && matchesJenjang && matchesKabupaten && matchesPhoto;
+        return matchesSearch && matchesJenjang && matchesKabupaten && matchesWilayah && matchesPhoto;
       })
       .sort((a, b) => {
         let cmp = 0;
@@ -236,6 +242,25 @@ export const ReportTable: React.FC<ReportTableProps> = ({
             <Camera className="w-3.5 h-3.5 text-emerald-600" />
             <span>Ada Foto</span>
           </button>
+
+          {/* Wilayah Filter (in Admin Pusat View) */}
+          {showWilayahColumn && (
+            <select
+              value={filterWilayah}
+              onChange={(e) => setFilterWilayah(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
+            >
+              <option value="ALL">Semua Wilayah ({reports.length} Sek.)</option>
+              {DAFTAR_WILAYAH.map((w) => {
+                const count = reports.filter((r) => r.wilayah === w).length;
+                return (
+                  <option key={w} value={w}>
+                    {w} ({count})
+                  </option>
+                );
+              })}
+            </select>
+          )}
 
           {/* Kabupaten Filter */}
           {kabupatenList.length > 0 && (
@@ -512,26 +537,27 @@ export const ReportTable: React.FC<ReportTableProps> = ({
 
                     {/* Aksi (Edit, Hapus) */}
                     <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1.5">
                         <button
                           onClick={() => onEdit(report)}
                           title="Edit Laporan"
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         
-                        {/* Hapus Laporan: Highlighted for Admin Pusat and Region */}
+                        {/* Hapus Laporan: Prominently styled for Admin Pusat and Region */}
                         <button
                           onClick={() => onDelete(report.id, report.sekolah)}
                           title={isAdminView ? "Hapus Laporan Ini (Admin Pusat)" : "Hapus Laporan"}
-                          className={`p-1.5 rounded-lg transition-colors ${
+                          className={`px-2.5 py-1 rounded-lg transition-all flex items-center space-x-1 font-bold text-xs cursor-pointer ${
                             isAdminView
-                              ? 'text-red-600 hover:text-white hover:bg-red-600 border border-red-200 hover:border-red-600'
+                              ? 'text-red-700 bg-red-50 hover:bg-red-600 hover:text-white border border-red-200 hover:border-red-600 shadow-xs'
                               : 'text-slate-500 hover:text-red-700 hover:bg-red-50'
                           }`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {isAdminView && <span>Hapus</span>}
                         </button>
                       </div>
                     </td>

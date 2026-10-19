@@ -17,10 +17,16 @@ import {
   Plus,
   AlertTriangle,
   RotateCcw,
-  Printer
+  Printer,
+  Trash2,
+  KeyRound,
+  ArrowLeft,
+  Copy,
+  Check
 } from 'lucide-react';
-import { SosialisasiReport, WilayahName, DAFTAR_WILAYAH, TARGET_RULES } from '../types';
+import { SosialisasiReport, WilayahName, DAFTAR_WILAYAH, TARGET_RULES, DEFAULT_WILAYAH_PINS } from '../types';
 import { ReportTable } from './ReportTable';
+import { TargetProgressCard } from './TargetProgressCard';
 import { StatsResponse } from '../services/api';
 
 interface AdminDashboardProps {
@@ -48,8 +54,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onResetData,
   onPrintPreview,
 }) => {
-  const [activeTab, setActiveTab] = useState<'matrix' | 'all-reports'>('matrix');
-  const [selectedDrillWilayah, setSelectedDrillWilayah] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'matrix' | 'all-reports' | 'pins'>('matrix');
+  const [selectedDrillWilayah, setSelectedDrillWilayah] = useState<WilayahName | null>(null);
+  const [copiedPin, setCopiedPin] = useState<string | null>(null);
 
   const summary = stats?.summary || {
     grandTotalSekolah: allReports.length,
@@ -64,6 +71,79 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const wilayahStats = stats?.wilayahStats || [];
+
+  const handleCopyPin = (wilayah: string, pin: string) => {
+    navigator.clipboard.writeText(pin);
+    setCopiedPin(wilayah);
+    setTimeout(() => {
+      setCopiedPin(null);
+    }, 2000);
+  };
+
+  // If drilling down into a single region inside Admin Dashboard
+  if (selectedDrillWilayah) {
+    const drillReports = allReports.filter(
+      (r) => r.wilayah.toLowerCase() === selectedDrillWilayah.toLowerCase()
+    );
+
+    return (
+      <div className="space-y-6">
+        {/* Navigation Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
+          <button
+            onClick={() => setSelectedDrillWilayah(null)}
+            className="inline-flex items-center space-x-1.5 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-xl text-xs font-bold transition-colors shadow-sm cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-slate-600" />
+            <span>Kembali ke Matriks Ringkasan Nasional</span>
+          </button>
+
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-lg">
+              Mode Admin Pusat: Memantau Wilayah {selectedDrillWilayah}
+            </span>
+            <button
+              onClick={onAddNewReport}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Input Laporan</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Target Progress Card for this Region */}
+        <TargetProgressCard
+          wilayah={selectedDrillWilayah}
+          reports={drillReports}
+          onAddReportClick={onAddNewReport}
+        />
+
+        {/* Reports Table with Admin Delete Functionality */}
+        <div className="space-y-3">
+          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-950">
+            <div className="flex items-center space-x-2">
+              <span className="font-bold bg-amber-200 px-2 py-0.5 rounded text-[11px]">Akses Admin</span>
+              <span>
+                Sebagai Admin Pusat, Anda dapat <strong>mengedit</strong> dan <strong>menghapus</strong> laporan sosialisasi yang telah diinput untuk wilayah {selectedDrillWilayah}.
+              </span>
+            </div>
+            <span className="font-bold text-amber-900">{drillReports.length} Sekolah Terdaftar</span>
+          </div>
+
+          <ReportTable
+            reports={drillReports}
+            onEdit={onEditReport}
+            onDelete={onDeleteReport}
+            onBatchDelete={onBatchDeleteReport}
+            onAddNew={onAddNewReport}
+            showWilayahColumn={false}
+            isAdminView={true}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -82,21 +162,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               Dashboard Monitoring Nasional SENSEI 2027
             </h1>
             <p className="text-sm text-slate-300 max-w-2xl">
-              Rekapitulasi dan evaluasi progres sosialisasi kunjungan sekolah di 14 wilayah mitra daerah secara real-time multi-device.
+              Rekapitulasi nasional, verifikasi data, dan kelola laporan sosialisasi dari 14 wilayah mitra daerah.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={onPrintPreview}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-colors flex items-center space-x-1.5"
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-colors flex items-center space-x-1.5 cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5 text-slate-300" />
               <span>Cetak Laporan</span>
             </button>
             <button
               onClick={onSeedSample}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 transition-colors flex items-center space-x-1.5"
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 transition-colors flex items-center space-x-1.5 cursor-pointer"
               title="Isi data simulasi contoh untuk uji coba target"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
@@ -104,7 +184,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
             <button
               onClick={onAddNewReport}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all flex items-center space-x-1.5"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all flex items-center space-x-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>+ Input Laporan</span>
@@ -158,24 +238,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          {/* Card 4: Wilayah Memenuhi Target */}
+          {/* Card 4: Wilayah Tercapai */}
           <div className="bg-slate-800/70 border border-slate-700/70 rounded-xl p-4">
             <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-              <span>Wilayah Lolos Target</span>
+              <span>Wilayah Tuntas</span>
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-2">
-              {summary.wilayahTercapai} <span className="text-sm text-slate-400 font-normal">/ {summary.totalWilayah}</span>
+              {summary.wilayahTercapai} <span className="text-base text-slate-400">/ 14</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
-              Target: min 2 Kab (15 SD & 5 SMP)
+              Memenuhi target 2 Kab.
             </div>
           </div>
 
-          {/* Card 5: Wilayah Belum Target */}
+          {/* Card 5: Wilayah Belum */}
           <div className="bg-slate-800/70 border border-slate-700/70 rounded-xl p-4 col-span-2 sm:col-span-1">
             <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-              <span>Perlu Akselerasi</span>
+              <span>Proses Berjalan</span>
               <Clock className="w-4 h-4 text-amber-400" />
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-amber-400 mt-2">
@@ -192,7 +272,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className="flex border-b border-slate-200 space-x-4">
         <button
           onClick={() => setActiveTab('matrix')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center space-x-2 ${
+          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer ${
             activeTab === 'matrix'
               ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -201,16 +281,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <BarChart3 className="w-4 h-4" />
           <span>Matriks Progres 14 Wilayah</span>
         </button>
+
         <button
           onClick={() => setActiveTab('all-reports')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center space-x-2 ${
+          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer ${
             activeTab === 'all-reports'
               ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <School className="w-4 h-4" />
-          <span>Seluruh Data Laporan ({allReports.length})</span>
+          <span>Kelola & Hapus Laporan ({allReports.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('pins')}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer ${
+            activeTab === 'pins'
+              ? 'border-emerald-600 text-emerald-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <KeyRound className="w-4 h-4" />
+          <span>PIN Akses 14 Wilayah</span>
         </button>
       </div>
 
@@ -241,7 +334,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <th className="py-3 px-3 text-right">Audience</th>
                     <th className="py-3 px-3 text-right">Pendaftar</th>
                     <th className="py-3 px-4 text-center">Progres</th>
-                    <th className="py-3 px-4 text-center">Aksi</th>
+                    <th className="py-3 px-4 text-center">Aksi Pengelolaan</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs sm:text-sm text-slate-800">
@@ -256,8 +349,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         {/* Wilayah */}
                         <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
                           <button
-                            onClick={() => onSelectWilayah(w.wilayah as WilayahName)}
-                            className="text-emerald-700 hover:text-emerald-900 hover:underline flex items-center space-x-1.5"
+                            onClick={() => setSelectedDrillWilayah(w.wilayah as WilayahName)}
+                            className="text-emerald-700 hover:text-emerald-900 hover:underline flex items-center space-x-1.5 cursor-pointer text-left"
                           >
                             <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                             <span>{w.wilayah}</span>
@@ -267,35 +360,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         {/* Status Target */}
                         <td className="py-3.5 px-3 text-center whitespace-nowrap">
                           {w.isTargetSelesai ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                              Target Tercapai
-                            </span>
-                          ) : w.totalSekolah > 0 ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                              <Clock className="w-3 h-3 mr-1 text-amber-500" />
-                              Sedang Berjalan
+                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Tercapai</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-normal bg-slate-100 text-slate-500">
-                              Belum Ada Data
+                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                              <Clock className="w-3.5 h-3.5 text-amber-500" />
+                              <span>{w.qualifyingKabupatenCount} / 2 Kab</span>
                             </span>
                           )}
                         </td>
 
-                        {/* Kab/Kota Lolos Kuota */}
-                        <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                          <span
-                            className={`font-mono font-bold text-xs px-2 py-0.5 rounded ${
-                              w.qualifyingKabupatenCount >= 2
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {w.qualifyingKabupatenCount} / 2 Kab
-                          </span>
-                          <span className="block text-[10px] text-slate-400 mt-0.5">
-                            ({w.kabupatenCount} dikunjungi)
+                        {/* Kab/Kota Lolos */}
+                        <td className="py-3.5 px-3 text-center whitespace-nowrap font-semibold">
+                          <span className={w.qualifyingKabupatenCount >= 2 ? 'text-emerald-700 font-extrabold' : 'text-slate-700'}>
+                            {w.qualifyingKabupatenCount} Kab/Kota
                           </span>
                         </td>
 
@@ -337,11 +417,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         {/* Aksi */}
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <button
-                            onClick={() => onSelectWilayah(w.wilayah as WilayahName)}
-                            className="inline-flex items-center space-x-1 px-3 py-1 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-lg text-xs font-semibold transition-colors border border-slate-200 hover:border-emerald-300"
+                            onClick={() => setSelectedDrillWilayah(w.wilayah as WilayahName)}
+                            className="inline-flex items-center space-x-1 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold transition-colors border border-emerald-300 cursor-pointer"
                           >
-                            <span>Buka Wilayah</span>
-                            <ChevronRight className="w-3 h-3" />
+                            <span>Kelola Laporan ({w.totalSekolah})</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </td>
                       </tr>
@@ -354,25 +434,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Tab 2: Seluruh Data Laporan */}
+      {/* Tab 2: Seluruh Data Laporan with Direct Delete Buttons */}
       {activeTab === 'all-reports' && (
         <div className="space-y-4">
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-900">
-            <div className="flex items-center space-x-2">
-              <span className="p-1.5 bg-amber-200/80 rounded-lg text-amber-900 font-bold">
-                Admin Pusat
-              </span>
-              <span>
-                Anda memiliki hak akses penuh untuk <strong>memverifikasi, mengedit, melihat foto dokumentasi</strong>, serta <strong>menghapus laporan</strong> yang telah diinput oleh panitia daerah.
-              </span>
+          <div className="p-4 bg-red-50/80 border border-red-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-red-950">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 bg-red-100 text-red-700 rounded-lg">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-red-900 block sm:inline">Hak Akses Penghapusan Admin Pusat:</span>{' '}
+                <span>Gunakan tombol merah <strong>"Hapus"</strong> di setiap baris laporan atau centang beberapa baris untuk <strong>"Hapus Terpilih"</strong> sekaligus dari cloud database.</span>
+              </div>
             </div>
+            <span className="font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-red-200 text-red-800 shrink-0 self-start sm:self-auto">
+              Total {allReports.length} Laporan
+            </span>
           </div>
 
-          <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-slate-900 text-lg">
-              Semua Laporan Kunjungan Sosialisasi Sekolah Se-Indonesia ({allReports.length} Sekolah)
-            </h3>
-          </div>
           <ReportTable
             reports={allReports}
             onEdit={onEditReport}
@@ -382,6 +461,80 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             showWilayahColumn={true}
             isAdminView={true}
           />
+        </div>
+      )}
+
+      {/* Tab 3: Daftar PIN Akses Wilayah */}
+      {activeTab === 'pins' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-base flex items-center space-x-2">
+                  <KeyRound className="w-5 h-5 text-amber-500" />
+                  <span>Daftar Kunci & PIN Akses Panitia 14 Wilayah</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Agar perolehan data masing-masing daerah terjaga kerahasiaannya, berikan PIN berikut secara tertutup kepada panitia daerah yang bersangkutan.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {DAFTAR_WILAYAH.map((wilayah) => {
+                const pin = DEFAULT_WILAYAH_PINS[wilayah];
+                const isCopied = copiedPin === wilayah;
+
+                return (
+                  <div
+                    key={wilayah}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-emerald-300 transition-all flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-bold text-sm text-slate-900 flex items-center space-x-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{wilayah}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1 flex items-center space-x-2">
+                        <span>PIN Akses:</span>
+                        <code className="font-mono font-bold bg-slate-200 px-2 py-0.5 rounded text-slate-800 text-xs">
+                          {pin}
+                        </code>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleCopyPin(wilayah, pin)}
+                      className={`p-2 rounded-lg text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer ${
+                        isCopied
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
+                      }`}
+                      title="Salin PIN ke clipboard"
+                    >
+                      {isCopied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Tersalin</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Salin</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-100 text-xs text-slate-600 space-y-1">
+              <div className="font-bold text-slate-800">Catatan Privasi & Keamanan:</div>
+              <p>• Panitia daerah hanya bisa masuk ke wilayahnya sendiri menggunakan PIN masing-masing dan tidak dapat melihat data wilayah lain.</p>
+              <p>• PIN master darurat untuk seluruh wilayah juga dapat menggunakan: <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-slate-900">sensei2027</code>.</p>
+            </div>
+          </div>
         </div>
       )}
     </div>

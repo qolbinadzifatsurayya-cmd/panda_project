@@ -68,3 +68,20 @@ export const TARGET_RULES = {
   MIN_SD_PER_KAB: 15,
   MIN_SMP_PER_KAB: 5,
 };
+
+export const DEFAULT_WILAYAH_PINS: Record<WilayahName, string> = {
+  'Sulawesi tengah': 'sulteng2027',
+  'Riau': 'riau2027',
+  'Kalbar': 'kalbar2027',
+  'Jabar': 'jabar2027',
+  'Jateng': 'jateng2027',
+  'Sumut': 'sumut2027',
+  'Sumbar': 'sumbar2027',
+  'Sumsel': 'sumsel2027',
+  'Lampung': 'lampung2027',
+  'Sulsel': 'sulsel2027',
+  'Bali': 'bali2027',
+  'NTB': 'ntb2027',
+  'Bengkulu': 'bengkulu2027',
+  'Kep. Riau': 'kepri2027',
+};
