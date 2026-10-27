@@ -12,13 +12,12 @@ import { WilayahName } from '../types';
 
 interface HeaderProps {
   currentUser: {
-    role: 'admin' | 'wilayah' | null;
+    role: 'admin' | 'wilayah' | 'jabodetabek' | null;
     wilayah?: WilayahName;
   };
   onLogout: () => void;
   onRefresh: () => void;
   isRefreshing?: boolean;
-  onOpenCloudSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,7 +25,6 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onRefresh,
   isRefreshing,
-  onOpenCloudSettings,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 text-white shadow-lg backdrop-blur-md bg-opacity-95">
@@ -56,26 +54,12 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Action Items */}
           <div className="flex items-center space-x-2 sm:space-x-3">
-            {/* Cloud Database Status Badge */}
-            <button
-              onClick={onOpenCloudSettings}
-              title="Status Database Cloud Multi-Device"
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition-colors"
-            >
-              <div className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </div>
-              <Database className="w-3.5 h-3.5 text-emerald-400 hidden xs:inline" />
-              <span className="hidden sm:inline font-medium">Cloud DB Aktif</span>
-            </button>
-
             {/* Quick Refresh Data Button */}
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
               title="Segarkan Data Real-Time"
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border border-slate-700"
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border border-slate-700 cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-400' : ''}`} />
             </button>
@@ -89,6 +73,11 @@ export const Header: React.FC<HeaderProps> = ({
                       <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
                       <span>Admin Pusat</span>
                     </div>
+                  ) : currentUser.role === 'jabodetabek' ? (
+                    <div className="flex items-center space-x-1.5 bg-teal-500/10 text-teal-300 border border-teal-500/30 px-2.5 py-1 rounded-md text-xs font-semibold">
+                      <MapPin className="w-3.5 h-3.5 text-teal-400" />
+                      <span>Roadshow Jabodetabek</span>
+                    </div>
                   ) : (
                     <div className="flex items-center space-x-1.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-md text-xs font-semibold">
                       <MapPin className="w-3.5 h-3.5 text-emerald-400" />
@@ -100,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={onLogout}
                   title="Keluar / Ganti Akun"
-                  className="p-2 rounded-lg bg-red-950/40 text-red-300 hover:bg-red-900/60 hover:text-white transition-colors border border-red-800/40"
+                  className="p-2 rounded-lg bg-red-950/40 text-red-300 hover:bg-red-900/60 hover:text-white transition-colors border border-red-800/40 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>

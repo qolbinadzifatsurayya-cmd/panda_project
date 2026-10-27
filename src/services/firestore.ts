@@ -100,6 +100,12 @@ export function sanitizeReportForFirestore(report: Partial<SosialisasiReport>): 
       : (report.dokumentasiUrl ? [String(report.dokumentasiUrl)] : []),
     createdAt: String(report.createdAt || new Date().toISOString()),
     updatedAt: String(report.updatedAt || new Date().toISOString()),
+    picRoadshow: report.picRoadshow ? String(report.picRoadshow).trim() : '',
+    daerahRoadshow: report.daerahRoadshow ? String(report.daerahRoadshow).trim() : '',
+    isJabodetabek: Boolean(
+      report.isJabodetabek || 
+      (report.wilayah && report.wilayah.trim().toLowerCase() === 'jabodetabek')
+    ),
   };
 }
 

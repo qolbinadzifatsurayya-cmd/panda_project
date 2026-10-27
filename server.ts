@@ -35,6 +35,9 @@ interface ReportItem {
   dokumentasiList?: string[];
   createdAt: string;
   updatedAt: string;
+  picRoadshow?: string;
+  daerahRoadshow?: string;
+  isJabodetabek?: boolean;
 }
 
 interface AppConfig {
@@ -57,149 +60,6 @@ const DAFTAR_WILAYAH = [
   'NTB',
   'Bengkulu',
   'Kep. Riau',
-];
-
-// Seed realistic initial records if file doesn't exist
-const initialSeedReports: ReportItem[] = [
-  // Jabar - Kab. Bogor (16 SD, 5 SMP) -> example meeting target
-  {
-    id: 'rep-jbr-01',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kab. Bogor',
-    jenjang: 'SD',
-    sekolah: 'SDIT Al-Madinah Cibinong',
-    pic: 'Drs. H. Mulyadi',
-    kontak: '081234567801',
-    jumlahAudience: 85,
-    jumlahPendaftar: 14,
-    tanggalKunjungan: '2026-09-02',
-    catatan: 'Presentasi di aula sekolah, antusiasme siswa kelas 6 sangat tinggi.',
-    createdAt: new Date('2026-09-02T08:30:00Z').toISOString(),
-    updatedAt: new Date('2026-09-02T08:30:00Z').toISOString(),
-  },
-  {
-    id: 'rep-jbr-02',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kab. Bogor',
-    jenjang: 'SD',
-    sekolah: 'SD Negeri 1 Cibinong',
-    pic: 'Ibu Ratna S.Pd',
-    kontak: '081234567802',
-    jumlahAudience: 92,
-    jumlahPendaftar: 18,
-    tanggalKunjungan: '2026-09-03',
-    catatan: 'Disambut baik oleh kepala sekolah dan wali kelas 6.',
-    createdAt: new Date('2026-09-03T09:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-03T09:00:00Z').toISOString(),
-  },
-  {
-    id: 'rep-jbr-03',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kab. Bogor',
-    jenjang: 'SMP',
-    sekolah: 'SMPIT Insantama Bogor',
-    pic: 'Ust. Fajar Ramadhan',
-    kontak: '081234567803',
-    jumlahAudience: 120,
-    jumlahPendaftar: 25,
-    tanggalKunjungan: '2026-09-05',
-    catatan: 'Sosialisasi program beasiswa SMART Ekselensia untuk lulusan SMP.',
-    createdAt: new Date('2026-09-05T10:15:00Z').toISOString(),
-    updatedAt: new Date('2026-09-05T10:15:00Z').toISOString(),
-  },
-  {
-    id: 'rep-jbr-04',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kota Bandung',
-    jenjang: 'SD',
-    sekolah: 'SD Al-Irsyad Kota Bandung',
-    pic: 'Bpk. Hendra Kurniawan',
-    kontak: '081398765431',
-    jumlahAudience: 78,
-    jumlahPendaftar: 12,
-    tanggalKunjungan: '2026-09-10',
-    catatan: 'Kunjungan ke Kota Bandung wilayah ke-2 untuk pemenuhan target.',
-    createdAt: new Date('2026-09-10T11:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-10T11:00:00Z').toISOString(),
-  },
-  {
-    id: 'rep-jbr-05',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kota Bandung',
-    jenjang: 'SMP',
-    sekolah: 'SMP Negeri 2 Bandung',
-    pic: 'Ibu Sri Wahyuni',
-    kontak: '081398765432',
-    jumlahAudience: 140,
-    jumlahPendaftar: 31,
-    tanggalKunjungan: '2026-09-12',
-    catatan: 'Koordinasi dengan guru BK kelas 9.',
-    createdAt: new Date('2026-09-12T09:45:00Z').toISOString(),
-    updatedAt: new Date('2026-09-12T09:45:00Z').toISOString(),
-  },
-  // Sulsel - Kota Makassar
-  {
-    id: 'rep-sls-01',
-    wilayah: 'Sulsel',
-    kabupatenKota: 'Kota Makassar',
-    jenjang: 'SD',
-    sekolah: 'SD Islam Athirah Makassar',
-    pic: 'Ustadz Syamsul Alam',
-    kontak: '085242123456',
-    jumlahAudience: 110,
-    jumlahPendaftar: 22,
-    tanggalKunjungan: '2026-09-04',
-    catatan: 'Brosur dan formulir registrasi SENSEI dibagikan merata.',
-    createdAt: new Date('2026-09-04T08:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-04T08:00:00Z').toISOString(),
-  },
-  {
-    id: 'rep-sls-02',
-    wilayah: 'Sulsel',
-    kabupatenKota: 'Kab. Gowa',
-    jenjang: 'SMP',
-    sekolah: 'SMP Negeri 1 Sungguminasa Gowa',
-    pic: 'Bpk. Daeng Mangngitung',
-    kontak: '085242987654',
-    jumlahAudience: 95,
-    jumlahPendaftar: 19,
-    tanggalKunjungan: '2026-09-07',
-    catatan: 'Kabupaten kedua di Sulsel yang dikunjungi tim sosialisasi.',
-    createdAt: new Date('2026-09-07T10:30:00Z').toISOString(),
-    updatedAt: new Date('2026-09-07T10:30:00Z').toISOString(),
-  },
-  // Sumut - Kota Medan
-  {
-    id: 'rep-smt-01',
-    wilayah: 'Sumut',
-    kabupatenKota: 'Kota Medan',
-    jenjang: 'SD',
-    sekolah: 'SD Al-Azhar Medan',
-    pic: 'Bpk. Rahmat Harahap S.Pd',
-    kontak: '081260123987',
-    jumlahAudience: 88,
-    jumlahPendaftar: 16,
-    tanggalKunjungan: '2026-09-08',
-    catatan: 'Sesi tanya jawab wali murid sangat interaktif.',
-    createdAt: new Date('2026-09-08T09:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-08T09:00:00Z').toISOString(),
-  },
-  // NTB - Kota Mataram
-  {
-    id: 'rep-ntb-01',
-    wilayah: 'NTB',
-    kabupatenKota: 'Kota Mataram',
-    jenjang: 'SD',
-    sekolah: 'SDIT Anak Sholeh Mataram',
-    pic: 'Ustadz Lalu Muhammad',
-    kontak: '087865432190',
-    jumlahAudience: 75,
-    jumlahPendaftar: 15,
-    tanggalKunjungan: '2026-09-06',
-    catatan: 'Wilayah NTB mulai roadshow ke sekolah sasaran.',
-    createdAt: new Date('2026-09-06T10:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-06T10:00:00Z').toISOString(),
-  },
 ];
 
 function loadReports(): ReportItem[] {
@@ -339,6 +199,9 @@ app.post('/api/reports', async (req: Request, res: Response) => {
       catatan,
       dokumentasiUrl,
       dokumentasiList,
+      picRoadshow,
+      daerahRoadshow,
+      isJabodetabek,
     } = req.body;
 
     if (!wilayah || !sekolah) {
@@ -349,7 +212,7 @@ app.post('/api/reports', async (req: Request, res: Response) => {
       return;
     }
 
-    const effectiveKab = String(kabupatenKota || wilayah || 'Umum').trim();
+    const effectiveKab = String(kabupatenKota || daerahRoadshow || wilayah || 'Umum').trim();
 
     const newReport: ReportItem = {
       id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -363,21 +226,18 @@ app.post('/api/reports', async (req: Request, res: Response) => {
       jumlahPendaftar: Math.max(0, Number(jumlahPendaftar) || 0),
       tanggalKunjungan: tanggalKunjungan || new Date().toISOString().split('T')[0],
       catatan: catatan ? String(catatan).trim() : '',
-      dokumentasiUrl: dokumentasiUrl ? String(dokumentasiUrl).trim() : undefined,
+      dokumentasiUrl: dokumentasiUrl ? String(dokumentasiUrl).trim() : '',
       dokumentasiList: Array.isArray(dokumentasiList) ? dokumentasiList : dokumentasiUrl ? [dokumentasiUrl] : [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      picRoadshow: picRoadshow ? String(picRoadshow).trim() : '',
+      daerahRoadshow: daerahRoadshow ? String(daerahRoadshow).trim() : effectiveKab,
+      isJabodetabek: Boolean(isJabodetabek || String(wilayah).toLowerCase() === 'jabodetabek'),
     };
 
     const current = loadReports();
     current.unshift(newReport);
     saveReports(current);
-
-    // Optional Firebase RTDB sync
-    const cfg = loadConfig();
-    if (cfg.syncWithFirebase && cfg.firebaseUrl) {
-      syncToFirebase(current, cfg.firebaseUrl);
-    }
 
     res.status(201).json({ success: true, data: newReport });
   } catch (err: any) {
@@ -402,7 +262,7 @@ app.post('/api/reports/batch', async (req: Request, res: Response) => {
         continue; // skip rows without school name
       }
 
-      const effectiveKab = String(item.kabupatenKota || item.wilayah || 'Umum').trim();
+      const effectiveKab = String(item.kabupatenKota || item.daerahRoadshow || item.wilayah || 'Umum').trim();
 
       const newReport: ReportItem = {
         id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${newItems.length}`,
@@ -416,10 +276,13 @@ app.post('/api/reports/batch', async (req: Request, res: Response) => {
         jumlahPendaftar: Math.max(0, Number(item.jumlahPendaftar) || 0),
         tanggalKunjungan: item.tanggalKunjungan || new Date().toISOString().split('T')[0],
         catatan: item.catatan ? String(item.catatan).trim() : '',
-        dokumentasiUrl: item.dokumentasiUrl ? String(item.dokumentasiUrl).trim() : undefined,
+        dokumentasiUrl: item.dokumentasiUrl ? String(item.dokumentasiUrl).trim() : '',
         dokumentasiList: Array.isArray(item.dokumentasiList) ? item.dokumentasiList : item.dokumentasiUrl ? [item.dokumentasiUrl] : [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        picRoadshow: item.picRoadshow ? String(item.picRoadshow).trim() : '',
+        daerahRoadshow: item.daerahRoadshow ? String(item.daerahRoadshow).trim() : effectiveKab,
+        isJabodetabek: Boolean(item.isJabodetabek || String(item.wilayah).toLowerCase() === 'jabodetabek'),
       };
       newItems.push(newReport);
     }
@@ -431,11 +294,6 @@ app.post('/api/reports/batch', async (req: Request, res: Response) => {
 
     current.unshift(...newItems);
     saveReports(current);
-
-    const cfg = loadConfig();
-    if (cfg.syncWithFirebase && cfg.firebaseUrl) {
-      syncToFirebase(current, cfg.firebaseUrl);
-    }
 
     res.status(201).json({ success: true, count: newItems.length, data: newItems });
   } catch (err: any) {
@@ -471,6 +329,9 @@ app.put('/api/reports/:id', async (req: Request, res: Response) => {
       catatan: body.catatan !== undefined ? String(body.catatan).trim() : existing.catatan,
       dokumentasiUrl: body.dokumentasiUrl !== undefined ? body.dokumentasiUrl : existing.dokumentasiUrl,
       dokumentasiList: Array.isArray(body.dokumentasiList) ? body.dokumentasiList : existing.dokumentasiList,
+      picRoadshow: body.picRoadshow !== undefined ? String(body.picRoadshow).trim() : existing.picRoadshow,
+      daerahRoadshow: body.daerahRoadshow !== undefined ? String(body.daerahRoadshow).trim() : existing.daerahRoadshow,
+      isJabodetabek: body.isJabodetabek !== undefined ? Boolean(body.isJabodetabek) : existing.isJabodetabek,
       updatedAt: new Date().toISOString(),
     };
 
@@ -704,109 +565,6 @@ app.post('/api/config', (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
-});
-
-// API: Quick Seed / Demo Fill for testing
-app.post('/api/seed-sample', (_req: Request, res: Response) => {
-  try {
-    const current = loadReports();
-    // Add additional sample data for demonstration of targets
-    const sampleBatch: ReportItem[] = [];
-
-    // Let's create complete visits for Kalbar to show target achieved
-    for (let i = 1; i <= 15; i++) {
-      sampleBatch.push({
-        id: `seed-kalbar-ptk-sd-${i}`,
-        wilayah: 'Kalbar',
-        kabupatenKota: 'Kota Pontianak',
-        jenjang: 'SD',
-        sekolah: `SD Negeri ${i} Pontianak Kota`,
-        pic: `Guru Penggerak SD ${i}`,
-        kontak: `0856000000${i.toString().padStart(2, '0')}`,
-        jumlahAudience: 60 + Math.floor(Math.random() * 40),
-        jumlahPendaftar: 8 + Math.floor(Math.random() * 12),
-        tanggalKunjungan: '2026-09-15',
-        catatan: 'Sosialisasi terlaksana dengan lancar',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    for (let i = 1; i <= 5; i++) {
-      sampleBatch.push({
-        id: `seed-kalbar-ptk-smp-${i}`,
-        wilayah: 'Kalbar',
-        kabupatenKota: 'Kota Pontianak',
-        jenjang: 'SMP',
-        sekolah: `SMP Negeri ${i} Pontianak`,
-        pic: `Wakasek Kesiswaan SMP ${i}`,
-        kontak: `0856111111${i.toString().padStart(2, '0')}`,
-        jumlahAudience: 100 + Math.floor(Math.random() * 50),
-        jumlahPendaftar: 15 + Math.floor(Math.random() * 15),
-        tanggalKunjungan: '2026-09-18',
-        catatan: 'Presentasi jalur beasiswa tahfidz dan prestasi SMART',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    // Second kabupaten in Kalbar: Kab. Kubu Raya
-    for (let i = 1; i <= 15; i++) {
-      sampleBatch.push({
-        id: `seed-kalbar-kbr-sd-${i}`,
-        wilayah: 'Kalbar',
-        kabupatenKota: 'Kab. Kubu Raya',
-        jenjang: 'SD',
-        sekolah: `SD IT Bina Insan Kubu Raya ${i}`,
-        pic: `Koordinator SD ${i}`,
-        kontak: `0856222222${i.toString().padStart(2, '0')}`,
-        jumlahAudience: 50 + Math.floor(Math.random() * 30),
-        jumlahPendaftar: 6 + Math.floor(Math.random() * 8),
-        tanggalKunjungan: '2026-09-20',
-        catatan: 'Edukasi dan penyerahan berkas PPDB',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    for (let i = 1; i <= 5; i++) {
-      sampleBatch.push({
-        id: `seed-kalbar-kbr-smp-${i}`,
-        wilayah: 'Kalbar',
-        kabupatenKota: 'Kab. Kubu Raya',
-        jenjang: 'SMP',
-        sekolah: `SMP Terpadu Kubu Raya ${i}`,
-        pic: `Guru BK SMP ${i}`,
-        kontak: `0856333333${i.toString().padStart(2, '0')}`,
-        jumlahAudience: 90 + Math.floor(Math.random() * 40),
-        jumlahPendaftar: 12 + Math.floor(Math.random() * 10),
-        tanggalKunjungan: '2026-09-22',
-        catatan: 'Presentasi dan simulasi pendaftaran online',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    // Merge without duplicates
-    const existingIds = new Set(current.map((r) => r.id));
-    const merged = [...current];
-    sampleBatch.forEach((s) => {
-      if (!existingIds.has(s.id)) {
-        merged.push(s);
-      }
-    });
-
-    saveReports(merged);
-    res.json({ success: true, message: 'Data simulasi contoh berhasil ditambahkan', total: merged.length });
-  } catch (err: any) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// Reset data endpoint
-app.post('/api/reset-data', (_req: Request, res: Response) => {
-  saveReports(initialSeedReports);
-  res.json({ success: true, message: 'Data berhasil direset ke data awal', total: initialSeedReports.length });
 });
 
 // Setup Vite or Static File Serving

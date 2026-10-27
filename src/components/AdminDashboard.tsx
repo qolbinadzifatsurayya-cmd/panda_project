@@ -22,11 +22,15 @@ import {
   KeyRound,
   ArrowLeft,
   Copy,
-  Check
+  Check,
+  Compass,
+  Layers
 } from 'lucide-react';
 import { SosialisasiReport, WilayahName, DAFTAR_WILAYAH, TARGET_RULES, DEFAULT_WILAYAH_PINS } from '../types';
 import { ReportTable } from './ReportTable';
 import { TargetProgressCard } from './TargetProgressCard';
+import { JabodetabekRoadshowView } from './JabodetabekRoadshowView';
+import { JabodetabekMatrixTable } from './JabodetabekMatrixTable';
 import { StatsResponse } from '../services/api';
 
 interface AdminDashboardProps {
@@ -37,8 +41,7 @@ interface AdminDashboardProps {
   onDeleteReport: (id: string, sekolah: string) => void;
   onBatchDeleteReport: (ids: string[]) => void;
   onAddNewReport: () => void;
-  onSeedSample: () => void;
-  onResetData: () => void;
+  onAddNewJabodetabekReport?: (defaultTeam?: string) => void;
   onPrintPreview: () => void;
 }
 
@@ -50,11 +53,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onDeleteReport,
   onBatchDeleteReport,
   onAddNewReport,
-  onSeedSample,
-  onResetData,
+  onAddNewJabodetabekReport,
   onPrintPreview,
 }) => {
-  const [activeTab, setActiveTab] = useState<'matrix' | 'all-reports' | 'pins'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'matrix-jabodetabek' | 'jabodetabek' | 'all-reports' | 'pins'>('matrix');
   const [selectedDrillWilayah, setSelectedDrillWilayah] = useState<WilayahName | null>(null);
   const [copiedPin, setCopiedPin] = useState<string | null>(null);
 
@@ -71,6 +73,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const wilayahStats = stats?.wilayahStats || [];
+
+  const jabodetabekReports = allReports.filter(
+    (r) => r.isJabodetabek || r.wilayah === 'Jabodetabek' || (r.daerahRoadshow && r.daerahRoadshow.trim() !== '')
+  );
 
   const handleCopyPin = (wilayah: string, pin: string) => {
     navigator.clipboard.writeText(pin);
@@ -175,14 +181,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <span>Cetak Laporan</span>
             </button>
             <button
-              onClick={onSeedSample}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 transition-colors flex items-center space-x-1.5 cursor-pointer"
-              title="Isi data simulasi contoh untuk uji coba target"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Isi Data Simulasi</span>
-            </button>
-            <button
               onClick={onAddNewReport}
               className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all flex items-center space-x-1.5 cursor-pointer"
             >
@@ -269,10 +267,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-slate-200 space-x-4">
+      <div className="flex border-b border-slate-200 space-x-2 sm:space-x-4 overflow-x-auto pb-px">
         <button
           onClick={() => setActiveTab('matrix')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer ${
+          className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
             activeTab === 'matrix'
               ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -283,8 +281,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('matrix-jabodetabek')}
+          className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
+            activeTab === 'matrix-jabodetabek'
+              ? 'border-sky-600 text-sky-700 font-extrabold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Compass className="w-4 h-4 text-sky-600" />
+          <span>Matriks Capaian Roadshow Jabodetabek</span>
+          <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold ${
+            activeTab === 'matrix-jabodetabek'
+              ? 'bg-sky-100 text-sky-800'
+              : 'bg-slate-100 text-slate-600'
+          }`}>
+            19 Tim • {jabodetabekReports.length}/285
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('jabodetabek')}
+          className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
+            activeTab === 'jabodetabek'
+              ? 'border-teal-600 text-teal-700 font-extrabold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Layers className="w-4 h-4 text-teal-600" />
+          <span>Rincian Laporan Roadshow</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('all-reports')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer ${
+          className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
             activeTab === 'all-reports'
               ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -296,7 +325,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <button
           onClick={() => setActiveTab('pins')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer ${
+          className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
             activeTab === 'pins'
               ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -310,6 +339,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Tab 1: 14 Wilayah Progress Matrix */}
       {activeTab === 'matrix' && (
         <div className="space-y-6">
+          {/* Quick link banner to Roadshow Jabodetabek Matrix */}
+          <div className="p-4 bg-sky-50 border border-sky-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-sky-950 shadow-xs">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 bg-sky-100 text-sky-700 rounded-xl shrink-0">
+                <Compass className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-extrabold text-sm text-sky-950 flex items-center space-x-1.5">
+                  <span>Matriks Capaian Sosialisasi Roadshow Jabodetabek</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-200 text-sky-800">
+                    19 Tim • Target 285 Sekolah
+                  </span>
+                </div>
+                <p className="text-slate-600 text-xs mt-0.5">
+                  Panitia pusat menyelenggarakan roadshow ke 19 tim wilayah Jabodetabek dengan kuota maksimal 15 sekolah per tim (kumulatif 285 sekolah).
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab('matrix-jabodetabek')}
+              className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+            >
+              <span>Buka Matriks Roadshow Jabodetabek</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
@@ -432,6 +488,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tab: Matriks Capaian Sosialisasi Roadshow Jabodetabek (19 Tim, Max 15 Sekolah/Tim, Total 285) */}
+      {activeTab === 'matrix-jabodetabek' && (
+        <JabodetabekMatrixTable
+          reports={jabodetabekReports}
+          onAddNewReport={(defaultTeam) => {
+            if (onAddNewJabodetabekReport) {
+              onAddNewJabodetabekReport(defaultTeam);
+            } else {
+              onAddNewReport();
+            }
+          }}
+          onEditReport={onEditReport}
+          onDeleteReport={onDeleteReport}
+          onBatchDeleteReport={onBatchDeleteReport}
+        />
+      )}
+
+      {/* Tab: Halaman Panitia Jabodetabek (Rincian & Filter Laporan) */}
+      {activeTab === 'jabodetabek' && (
+        <JabodetabekRoadshowView
+          reports={jabodetabekReports}
+          onAddNewReport={() => {
+            if (onAddNewJabodetabekReport) {
+              onAddNewJabodetabekReport();
+            } else {
+              onAddNewReport();
+            }
+          }}
+          onEditReport={onEditReport}
+          onDeleteReport={onDeleteReport}
+          onBatchDeleteReport={onBatchDeleteReport}
+        />
       )}
 
       {/* Tab 2: Seluruh Data Laporan with Direct Delete Buttons */}

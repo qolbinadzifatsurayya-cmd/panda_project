@@ -15,18 +15,21 @@ import {
   X,
   School,
   BarChart3,
-  Users
+  Users,
+  Compass
 } from 'lucide-react';
 import { DAFTAR_WILAYAH, WilayahName, DEFAULT_WILAYAH_PINS } from '../types';
 
 interface LoginModalProps {
   onLoginAdmin: (user: string, pass: string) => boolean;
   onSelectWilayah: (wilayah: WilayahName) => void;
+  onSelectJabodetabek?: () => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({
   onLoginAdmin,
   onSelectWilayah,
+  onSelectJabodetabek,
 }) => {
   // 2 Pilihan Utama di Halaman Awal: 'choose' (menu awal), 'admin' (login admin pusat), 'wilayah' (pilihan wilayah)
   const [viewMode, setViewMode] = useState<'choose' | 'admin' | 'wilayah'>('choose');
@@ -200,6 +203,40 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* OPSI TAMBAHAN: AKSES KHUSUS PANITIA ROADSHOW JABODETABEK */}
+            {onSelectJabodetabek && (
+              <div
+                onClick={onSelectJabodetabek}
+                className="max-w-3xl mx-auto p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-sky-950/70 via-slate-900/90 to-sky-950/70 border border-sky-500/40 hover:border-sky-400 shadow-xl transition-all duration-200 cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-4 group hover:scale-[1.01]"
+              >
+                <div className="flex items-center space-x-3.5">
+                  <div className="p-3 bg-sky-500/10 text-sky-400 rounded-xl border border-sky-500/30 group-hover:scale-105 transition-transform shrink-0">
+                    <Compass className="w-6 h-6 text-sky-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h4 className="text-sm sm:text-base font-extrabold text-white group-hover:text-sky-300 transition-colors">
+                        Halaman Panitia Roadshow Jabodetabek
+                      </h4>
+                      <span className="text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 px-2 py-0.5 rounded-full">
+                        Target 285 Sekolah (19 Tim @ 15 Sek)
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1">
+                      Akses tim sosialisasi panitia pusat untuk menginput dan memantau kunjungan sekolah sekitar Jabodetabek (SD & SMP) untuk 19 tim roadshow.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 text-xs font-bold text-sky-400 group-hover:text-sky-300 shrink-0">
+                  <span>Buka Halaman Jabodetabek</span>
+                  <div className="w-7 h-7 rounded-full bg-sky-500/20 flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                    <ArrowRight className="w-3.5 h-3.5 text-sky-400" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

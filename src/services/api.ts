@@ -36,149 +36,6 @@ export interface CloudConfig {
 const STORAGE_KEY_REPORTS = 'sensei_reports_db';
 const STORAGE_KEY_CONFIG = 'sensei_cloud_config';
 
-// Initial realistic dataset for 14 regions
-export const initialSeedReports: SosialisasiReport[] = [
-  // Jabar - Kab. Bogor & Kota Bandung
-  {
-    id: 'rep-jbr-01',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kab. Bogor',
-    jenjang: 'SD',
-    sekolah: 'SDIT Al-Madinah Cibinong',
-    pic: 'Drs. H. Mulyadi',
-    kontak: '081234567801',
-    jumlahAudience: 85,
-    jumlahPendaftar: 14,
-    tanggalKunjungan: '2026-09-02',
-    catatan: 'Presentasi di aula sekolah, antusiasme siswa kelas 6 sangat tinggi.',
-    createdAt: new Date('2026-09-02T08:30:00Z').toISOString(),
-    updatedAt: new Date('2026-09-02T08:30:00Z').toISOString(),
-  },
-  {
-    id: 'rep-jbr-02',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kab. Bogor',
-    jenjang: 'SD',
-    sekolah: 'SD Negeri 1 Cibinong',
-    pic: 'Ibu Ratna S.Pd',
-    kontak: '081234567802',
-    jumlahAudience: 92,
-    jumlahPendaftar: 18,
-    tanggalKunjungan: '2026-09-03',
-    catatan: 'Disambut baik oleh kepala sekolah dan wali kelas 6.',
-    createdAt: new Date('2026-09-03T09:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-03T09:00:00Z').toISOString(),
-  },
-  {
-    id: 'rep-jbr-03',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kab. Bogor',
-    jenjang: 'SMP',
-    sekolah: 'SMPIT Insantama Bogor',
-    pic: 'Ust. Fajar Ramadhan',
-    kontak: '081234567803',
-    jumlahAudience: 120,
-    jumlahPendaftar: 25,
-    tanggalKunjungan: '2026-09-05',
-    catatan: 'Sosialisasi program beasiswa SMART Ekselensia untuk lulusan SMP.',
-    createdAt: new Date('2026-09-05T10:15:00Z').toISOString(),
-    updatedAt: new Date('2026-09-05T10:15:00Z').toISOString(),
-  },
-  {
-    id: 'rep-jbr-04',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kota Bandung',
-    jenjang: 'SD',
-    sekolah: 'SD Al-Irsyad Kota Bandung',
-    pic: 'Bpk. Hendra Kurniawan',
-    kontak: '081398765431',
-    jumlahAudience: 78,
-    jumlahPendaftar: 12,
-    tanggalKunjungan: '2026-09-10',
-    catatan: 'Kunjungan ke Kota Bandung wilayah ke-2 untuk pemenuhan target.',
-    createdAt: new Date('2026-09-10T11:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-10T11:00:00Z').toISOString(),
-  },
-  {
-    id: 'rep-jbr-05',
-    wilayah: 'Jabar',
-    kabupatenKota: 'Kota Bandung',
-    jenjang: 'SMP',
-    sekolah: 'SMP Negeri 2 Bandung',
-    pic: 'Ibu Sri Wahyuni',
-    kontak: '081398765432',
-    jumlahAudience: 140,
-    jumlahPendaftar: 31,
-    tanggalKunjungan: '2026-09-12',
-    catatan: 'Koordinasi dengan guru BK kelas 9.',
-    createdAt: new Date('2026-09-12T09:45:00Z').toISOString(),
-    updatedAt: new Date('2026-09-12T09:45:00Z').toISOString(),
-  },
-  // Sulsel
-  {
-    id: 'rep-sls-01',
-    wilayah: 'Sulsel',
-    kabupatenKota: 'Kota Makassar',
-    jenjang: 'SD',
-    sekolah: 'SD Islam Athirah Makassar',
-    pic: 'Ustadz Syamsul Alam',
-    kontak: '085242123456',
-    jumlahAudience: 110,
-    jumlahPendaftar: 22,
-    tanggalKunjungan: '2026-09-04',
-    catatan: 'Brosur dan formulir registrasi SENSEI dibagikan merata.',
-    createdAt: new Date('2026-09-04T08:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-04T08:00:00Z').toISOString(),
-  },
-  {
-    id: 'rep-sls-02',
-    wilayah: 'Sulsel',
-    kabupatenKota: 'Kab. Gowa',
-    jenjang: 'SMP',
-    sekolah: 'SMP Negeri 1 Sungguminasa Gowa',
-    pic: 'Bpk. Daeng Mangngitung',
-    kontak: '085242987654',
-    jumlahAudience: 95,
-    jumlahPendaftar: 19,
-    tanggalKunjungan: '2026-09-07',
-    catatan: 'Kabupaten kedua di Sulsel yang dikunjungi tim sosialisasi.',
-    createdAt: new Date('2026-09-07T10:30:00Z').toISOString(),
-    updatedAt: new Date('2026-09-07T10:30:00Z').toISOString(),
-  },
-  // Sumut
-  {
-    id: 'rep-smt-01',
-    wilayah: 'Sumut',
-    kabupatenKota: 'Kota Medan',
-    jenjang: 'SD',
-    sekolah: 'SD Al-Azhar Medan',
-    pic: 'Bpk. Rahmat Harahap S.Pd',
-    kontak: '081260123987',
-    jumlahAudience: 88,
-    jumlahPendaftar: 16,
-    tanggalKunjungan: '2026-09-08',
-    catatan: 'Sesi tanya jawab wali murid sangat interaktif.',
-    createdAt: new Date('2026-09-08T09:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-08T09:00:00Z').toISOString(),
-  },
-  // NTB
-  {
-    id: 'rep-ntb-01',
-    wilayah: 'NTB',
-    kabupatenKota: 'Kota Mataram',
-    jenjang: 'SD',
-    sekolah: 'SDIT Anak Sholeh Mataram',
-    pic: 'Ustadz Lalu Muhammad',
-    kontak: '087865432190',
-    jumlahAudience: 75,
-    jumlahPendaftar: 15,
-    tanggalKunjungan: '2026-09-06',
-    catatan: 'Wilayah NTB mulai roadshow ke sekolah sasaran.',
-    createdAt: new Date('2026-09-06T10:00:00Z').toISOString(),
-    updatedAt: new Date('2026-09-06T10:00:00Z').toISOString(),
-  },
-];
-
 // Helper: load local reports cache
 function getLocalReports(): SosialisasiReport[] {
   try {
@@ -342,40 +199,48 @@ async function syncDirectToFirebase(reports: SosialisasiReport[]) {
 
 export const api = {
   async getReports(wilayah?: string): Promise<SosialisasiReport[]> {
-    // 1. Primary cloud database: Firestore (multi-device active)
-    try {
-      const firestoreList = await getReportsFromFirestore();
-      if (Array.isArray(firestoreList)) {
-        saveLocalReports(firestoreList);
-        if (wilayah) {
-          return firestoreList.filter(
-            (r) => r.wilayah.trim().toLowerCase() === wilayah.trim().toLowerCase()
-          );
-        }
-        return firestoreList;
-      }
-    } catch (e) {
-      console.warn('Firestore cloud fetch warning:', e);
-    }
-
-    // 2. Secondary fallback: backend API server
+    // 1. Fetch from server data/reports.json (which retains all real user-submitted reports)
+    let serverReports: SosialisasiReport[] = [];
     try {
       const url = wilayah ? `/api/reports?wilayah=${encodeURIComponent(wilayah)}` : '/api/reports';
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (res.ok) {
         const json = await res.json();
-        if (json.success && Array.isArray(json.data)) {
-          if (!wilayah) {
-            saveLocalReports(json.data);
-          }
-          return json.data;
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          serverReports = json.data;
         }
       }
     } catch {}
+
+    // 2. Fetch from Firestore cloud database if quota and connection allow
+    let firestoreList: SosialisasiReport[] = [];
+    try {
+      const fsRes = await getReportsFromFirestore();
+      if (Array.isArray(fsRes) && fsRes.length > 0) {
+        firestoreList = fsRes;
+      }
+    } catch (e) {
+      console.warn('Firestore cloud fetch warning (using local/server storage):', e);
+    }
+
+    // Merge reports uniquely by id to prevent duplicates
+    if (serverReports.length > 0 || firestoreList.length > 0) {
+      const idMap = new Map<string, SosialisasiReport>();
+      serverReports.forEach((r) => idMap.set(r.id, r));
+      firestoreList.forEach((r) => idMap.set(r.id, r));
+      const merged = Array.from(idMap.values());
+      saveLocalReports(merged);
+      if (wilayah) {
+        return merged.filter(
+          (r) => r.wilayah.trim().toLowerCase() === wilayah.trim().toLowerCase()
+        );
+      }
+      return merged;
+    }
 
     // 3. Fallback to resilient local cache
     const local = getLocalReports();
@@ -409,6 +274,9 @@ export const api = {
         : (data.dokumentasiUrl ? [String(data.dokumentasiUrl)] : []),
       createdAt: now,
       updatedAt: now,
+      picRoadshow: data.picRoadshow ? data.picRoadshow.trim() : '',
+      daerahRoadshow: data.daerahRoadshow ? data.daerahRoadshow.trim() : (data.kabupatenKota ? data.kabupatenKota.trim() : ''),
+      isJabodetabek: Boolean(data.isJabodetabek || (data.wilayah && data.wilayah.toLowerCase() === 'jabodetabek')),
     };
 
     // Save locally first so it is immediately responsive
@@ -469,6 +337,9 @@ export const api = {
           : (r.dokumentasiUrl ? [String(r.dokumentasiUrl)] : []),
         createdAt: now,
         updatedAt: now,
+        picRoadshow: r.picRoadshow ? r.picRoadshow.trim() : '',
+        daerahRoadshow: r.daerahRoadshow ? r.daerahRoadshow.trim() : (r.kabupatenKota ? r.kabupatenKota.trim() : ''),
+        isJabodetabek: Boolean(r.isJabodetabek || (r.wilayah && r.wilayah.toLowerCase() === 'jabodetabek')),
       }));
 
     if (newItems.length === 0) {
@@ -667,122 +538,4 @@ export const api = {
     }
   },
 
-  async seedSample(): Promise<{ message: string; total: number }> {
-    const current = getLocalReports();
-    const sampleBatch: SosialisasiReport[] = [];
-
-    // Complete visits for Kalbar
-    for (let i = 1; i <= 15; i++) {
-      sampleBatch.push({
-        id: `seed-kalbar-ptk-sd-${i}`,
-        wilayah: 'Kalbar',
-        kabupatenKota: 'Kota Pontianak',
-        jenjang: 'SD',
-        sekolah: `SD Negeri ${i} Pontianak Kota`,
-        pic: `Guru Penggerak SD ${i}`,
-        kontak: `0856000000${i.toString().padStart(2, '0')}`,
-        jumlahAudience: 60 + Math.floor(Math.random() * 40),
-        jumlahPendaftar: 8 + Math.floor(Math.random() * 12),
-        tanggalKunjungan: '2026-09-15',
-        catatan: 'Sosialisasi terlaksana dengan lancar',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    for (let i = 1; i <= 5; i++) {
-      sampleBatch.push({
-        id: `seed-kalbar-ptk-smp-${i}`,
-        wilayah: 'Kalbar',
-        kabupatenKota: 'Kota Pontianak',
-        jenjang: 'SMP',
-        sekolah: `SMP Negeri ${i} Pontianak`,
-        pic: `Wakasek Kesiswaan SMP ${i}`,
-        kontak: `0856111111${i.toString().padStart(2, '0')}`,
-        jumlahAudience: 100 + Math.floor(Math.random() * 50),
-        jumlahPendaftar: 15 + Math.floor(Math.random() * 15),
-        tanggalKunjungan: '2026-09-18',
-        catatan: 'Presentasi jalur beasiswa tahfidz dan prestasi SMART',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    for (let i = 1; i <= 15; i++) {
-      sampleBatch.push({
-        id: `seed-kalbar-kbr-sd-${i}`,
-        wilayah: 'Kalbar',
-        kabupatenKota: 'Kab. Kubu Raya',
-        jenjang: 'SD',
-        sekolah: `SD IT Bina Insan Kubu Raya ${i}`,
-        pic: `Koordinator SD ${i}`,
-        kontak: `0856222222${i.toString().padStart(2, '0')}`,
-        jumlahAudience: 50 + Math.floor(Math.random() * 30),
-        jumlahPendaftar: 6 + Math.floor(Math.random() * 8),
-        tanggalKunjungan: '2026-09-20',
-        catatan: 'Edukasi dan penyerahan berkas PPDB',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    for (let i = 1; i <= 5; i++) {
-      sampleBatch.push({
-        id: `seed-kalbar-kbr-smp-${i}`,
-        wilayah: 'Kalbar',
-        kabupatenKota: 'Kab. Kubu Raya',
-        jenjang: 'SMP',
-        sekolah: `SMP Terpadu Kubu Raya ${i}`,
-        pic: `Guru BK SMP ${i}`,
-        kontak: `0856333333${i.toString().padStart(2, '0')}`,
-        jumlahAudience: 90 + Math.floor(Math.random() * 40),
-        jumlahPendaftar: 12 + Math.floor(Math.random() * 10),
-        tanggalKunjungan: '2026-09-22',
-        catatan: 'Presentasi dan simulasi pendaftaran online',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    const existingIds = new Set(current.map((r) => r.id));
-    const merged = [...current];
-    sampleBatch.forEach((s) => {
-      if (!existingIds.has(s.id)) {
-        merged.push(s);
-      }
-    });
-
-    saveLocalReports(merged);
-    syncDirectToFirebase(merged);
-
-    try {
-      await saveBatchReportsToFirestore(sampleBatch);
-    } catch (err) {
-      console.warn('Firestore seedSample warning:', err);
-    }
-
-    try {
-      fetch('/api/seed-sample', { method: 'POST' }).catch(() => {});
-    } catch {}
-
-    return { message: 'Data simulasi contoh berhasil ditambahkan ke Cloud Database', total: merged.length };
-  },
-
-  async resetData(): Promise<{ message: string; total: number }> {
-    saveLocalReports(initialSeedReports);
-    syncDirectToFirebase(initialSeedReports);
-
-    try {
-      // Overwrite initial seed to Firestore
-      await saveBatchReportsToFirestore(initialSeedReports);
-    } catch (err) {
-      console.warn('Firestore reset warning:', err);
-    }
-
-    try {
-      fetch('/api/reset-data', { method: 'POST' }).catch(() => {});
-    } catch {}
-
-    return { message: 'Data berhasil direset ke data awal', total: initialSeedReports.length };
-  },
 };
