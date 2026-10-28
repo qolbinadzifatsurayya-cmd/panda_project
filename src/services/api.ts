@@ -1,4 +1,5 @@
 import { SosialisasiReport, WilayahTargetProgress, DAFTAR_WILAYAH, KabupatenStats } from '../types';
+import { INITIAL_REPORTS } from '../data/initialReports';
 import {
   getReportsFromFirestore,
   saveReportToFirestore,
@@ -34,22 +35,47 @@ export interface CloudConfig {
 }
 
 const STORAGE_KEY_REPORTS = 'sensei_reports_db';
+const STORAGE_KEY_DELETED = 'sensei_deleted_report_ids';
 const STORAGE_KEY_CONFIG = 'sensei_cloud_config';
 
-// Helper: load local reports cache
+// Helper: tracking explicitly deleted report IDs so they are not resurrected
+function getDeletedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DELETED);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch {}
+  return new Set();
+}
+
+function addDeletedIds(ids: string[]) {
+  try {
+    const set = getDeletedIds();
+    ids.forEach((id) => set.add(id));
+    localStorage.setItem(STORAGE_KEY_DELETED, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
+// Helper: load local reports cache with automatic fallback to bundled INITIAL_REPORTS (49 reports)
 function getLocalReports(): SosialisasiReport[] {
+  const deletedSet = getDeletedIds();
   try {
     const raw = localStorage.getItem(STORAGE_KEY_REPORTS);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.filter((r) => !deletedSet.has(r.id));
       }
     }
   } catch (err) {
     console.warn('Error reading from localStorage:', err);
   }
-  return [];
+  // Initialize with the 49 verified baseline reports so data is ALWAYS present on any device/GitHub push
+  const baseline = INITIAL_REPORTS.filter((r) => !deletedSet.has(r.id));
+  saveLocalReports(baseline);
+  return baseline;
 }
 
 // Helper: save local reports cache
@@ -199,12 +225,14 @@ async function syncDirectToFirebase(reports: SosialisasiReport[]) {
 
 export const api = {
   async getReports(wilayah?: string): Promise<SosialisasiReport[]> {
-    // 1. Fetch from server data/reports.json (which retains all real user-submitted reports)
+    const deletedSet = getDeletedIds();
+
+    // 1. Fetch from server API
     let serverReports: SosialisasiReport[] = [];
     try {
       const url = wilayah ? `/api/reports?wilayah=${encodeURIComponent(wilayah)}` : '/api/reports';
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
 
@@ -215,6 +243,19 @@ export const api = {
         }
       }
     } catch {}
+
+    // 1b. If server API returned nothing (e.g. static hosting on GitHub Pages / Vercel), load static JSON
+    if (serverReports.length === 0) {
+      try {
+        const staticRes = await fetch('/data/reports.json');
+        if (staticRes.ok) {
+          const staticData = await staticRes.json();
+          if (Array.isArray(staticData) && staticData.length > 0) {
+            serverReports = staticData;
+          }
+        }
+      } catch {}
+    }
 
     // 2. Fetch from Firestore cloud database if quota and connection allow
     let firestoreList: SosialisasiReport[] = [];
@@ -227,29 +268,40 @@ export const api = {
       console.warn('Firestore cloud fetch warning (using local/server storage):', e);
     }
 
-    // Merge reports uniquely by id to prevent duplicates
-    if (serverReports.length > 0 || firestoreList.length > 0) {
-      const idMap = new Map<string, SosialisasiReport>();
-      serverReports.forEach((r) => idMap.set(r.id, r));
-      firestoreList.forEach((r) => idMap.set(r.id, r));
-      const merged = Array.from(idMap.values());
-      saveLocalReports(merged);
-      if (wilayah) {
-        return merged.filter(
-          (r) => r.wilayah.trim().toLowerCase() === wilayah.trim().toLowerCase()
-        );
-      }
-      return merged;
-    }
+    // 3. Merge uniquely starting with bundled baseline INITIAL_REPORTS (guarantees all 49 reports are present)
+    const idMap = new Map<string, SosialisasiReport>();
 
-    // 3. Fallback to resilient local cache
+    // Baseline 49 reports
+    INITIAL_REPORTS.forEach((r) => {
+      if (!deletedSet.has(r.id)) idMap.set(r.id, r);
+    });
+
+    // Local cached reports
     const local = getLocalReports();
+    local.forEach((r) => {
+      if (!deletedSet.has(r.id)) idMap.set(r.id, r);
+    });
+
+    // Server / static reports
+    serverReports.forEach((r) => {
+      if (!deletedSet.has(r.id)) idMap.set(r.id, r);
+    });
+
+    // Firestore reports
+    firestoreList.forEach((r) => {
+      if (!deletedSet.has(r.id)) idMap.set(r.id, r);
+    });
+
+    const merged = Array.from(idMap.values());
+    merged.sort((a, b) => new Date(b.createdAt || b.tanggalKunjungan).getTime() - new Date(a.createdAt || a.tanggalKunjungan).getTime());
+    saveLocalReports(merged);
+
     if (wilayah) {
-      return local.filter(
+      return merged.filter(
         (r) => r.wilayah.trim().toLowerCase() === wilayah.trim().toLowerCase()
       );
     }
-    return local;
+    return merged;
   },
 
   async createReport(
@@ -405,6 +457,9 @@ export const api = {
   },
 
   async deleteReport(id: string): Promise<void> {
+    // 0. Track deleted ID to prevent resurrection from baseline bundle
+    addDeletedIds([id]);
+
     // 1. Remove from local storage cache
     let current = getLocalReports();
     current = current.filter((r) => r.id !== id);
@@ -425,6 +480,9 @@ export const api = {
   },
 
   async batchDeleteReports(ids: string[]): Promise<number> {
+    // 0. Track deleted IDs to prevent resurrection from baseline bundle
+    addDeletedIds(ids);
+
     const idSet = new Set(ids);
     let current = getLocalReports();
     const beforeCount = current.length;
