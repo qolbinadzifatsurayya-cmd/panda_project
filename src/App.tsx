@@ -113,15 +113,25 @@ export default function App() {
     fetchData();
   }, [fetchData]);
 
-  // Real-time synchronization via Firestore snapshot listener for multi-device sync
+  // Real-time synchronization via Firestore snapshot listener with graceful error handler
   useEffect(() => {
-    const unsub = api.subscribeReports((reports) => {
-      if (reports && reports.length > 0) {
-        setAllReports(reports);
-        api.getStats(reports).then((s) => setStats(s)).catch(() => {});
-        setIsLoading(false);
-      }
-    });
+    let unsub: (() => void) | undefined;
+    try {
+      unsub = api.subscribeReports(
+        (reports) => {
+          if (reports && reports.length > 0) {
+            setAllReports(reports);
+            api.getStats(reports).then((s) => setStats(s)).catch(() => {});
+            setIsLoading(false);
+          }
+        },
+        (err) => {
+          console.warn('Real-time snapshot listener notice:', err);
+        }
+      );
+    } catch (e) {
+      console.warn('Real-time snapshot registration notice:', e);
+    }
 
     return () => {
       if (unsub) unsub();

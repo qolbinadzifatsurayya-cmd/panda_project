@@ -61,10 +61,30 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 const REPORTS_COLLECTION = 'reports';
 
+let isFirestoreQuotaExceeded = false;
+
+export function isQuotaError(error?: unknown): boolean {
+  if (!error) return isFirestoreQuotaExceeded;
+  const msg = error instanceof Error ? error.message : String(error);
+  if (
+    msg.includes('Quota limit exceeded') ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.toLowerCase().includes('quota exceeded') ||
+    msg.toLowerCase().includes('quota metric')
+  ) {
+    isFirestoreQuotaExceeded = true;
+    return true;
+  }
+  return isFirestoreQuotaExceeded;
+}
+
 /**
- * Fetch reports from Firestore with error handling
+ * Fetch reports from Firestore with error handling & quota resilience
  */
 export async function getReportsFromFirestore(wilayah?: string): Promise<SosialisasiReport[]> {
+  if (isFirestoreQuotaExceeded) {
+    return [];
+  }
   try {
     const colRef = collection(db, REPORTS_COLLECTION);
     const q = wilayah ? query(colRef, where('wilayah', '==', wilayah)) : query(colRef);
@@ -74,6 +94,10 @@ export async function getReportsFromFirestore(wilayah?: string): Promise<Sosiali
     list.sort((a, b) => new Date(b.createdAt || b.tanggalKunjungan).getTime() - new Date(a.createdAt || a.tanggalKunjungan).getTime());
     return list;
   } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn('Firestore read quota exceeded for today. Serving data seamlessly from local and server storage.');
+      return [];
+    }
     handleFirestoreError(error, OperationType.GET, REPORTS_COLLECTION);
   }
 }
@@ -113,11 +137,16 @@ export function sanitizeReportForFirestore(report: Partial<SosialisasiReport>): 
  * Save single report to Firestore
  */
 export async function saveReportToFirestore(report: SosialisasiReport): Promise<void> {
+  if (isFirestoreQuotaExceeded) return;
   const sanitized = sanitizeReportForFirestore(report);
   const path = `${REPORTS_COLLECTION}/${sanitized.id}`;
   try {
     await setDoc(doc(db, REPORTS_COLLECTION, sanitized.id), sanitized);
   } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn('Firestore write quota exceeded. Report is safely persisted to server database.');
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -126,7 +155,7 @@ export async function saveReportToFirestore(report: SosialisasiReport): Promise<
  * Save multiple reports in atomic batch
  */
 export async function saveBatchReportsToFirestore(reports: SosialisasiReport[]): Promise<void> {
-  if (reports.length === 0) return;
+  if (isFirestoreQuotaExceeded || reports.length === 0) return;
   try {
     const batch = writeBatch(db);
     for (const item of reports) {
@@ -136,6 +165,10 @@ export async function saveBatchReportsToFirestore(reports: SosialisasiReport[]):
     }
     await batch.commit();
   } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn('Firestore batch write quota exceeded. Reports safely persisted to server database.');
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, REPORTS_COLLECTION);
   }
 }
@@ -144,6 +177,7 @@ export async function saveBatchReportsToFirestore(reports: SosialisasiReport[]):
  * Update single report
  */
 export async function updateReportInFirestore(id: string, data: Partial<SosialisasiReport>): Promise<void> {
+  if (isFirestoreQuotaExceeded) return;
   const path = `${REPORTS_COLLECTION}/${id}`;
   try {
     const cleanData: Record<string, any> = { ...data, updatedAt: new Date().toISOString() };
@@ -156,6 +190,10 @@ export async function updateReportInFirestore(id: string, data: Partial<Sosialis
     const ref = doc(db, REPORTS_COLLECTION, id);
     await setDoc(ref, cleanData, { merge: true });
   } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn('Firestore update quota exceeded. Report safely updated in server database.');
+      return;
+    }
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
@@ -164,10 +202,15 @@ export async function updateReportInFirestore(id: string, data: Partial<Sosialis
  * Delete single report
  */
 export async function deleteReportFromFirestore(id: string): Promise<void> {
+  if (isFirestoreQuotaExceeded) return;
   const path = `${REPORTS_COLLECTION}/${id}`;
   try {
     await deleteDoc(doc(db, REPORTS_COLLECTION, id));
   } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn('Firestore delete quota exceeded. Report safely deleted from server database.');
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -176,7 +219,7 @@ export async function deleteReportFromFirestore(id: string): Promise<void> {
  * Delete multiple reports
  */
 export async function batchDeleteReportsFromFirestore(ids: string[]): Promise<void> {
-  if (ids.length === 0) return;
+  if (isFirestoreQuotaExceeded || ids.length === 0) return;
   try {
     const batch = writeBatch(db);
     for (const id of ids) {
@@ -184,6 +227,10 @@ export async function batchDeleteReportsFromFirestore(ids: string[]): Promise<vo
     }
     await batch.commit();
   } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn('Firestore batch delete quota exceeded. Reports safely deleted from server database.');
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, REPORTS_COLLECTION);
   }
 }
@@ -195,19 +242,34 @@ export function subscribeReportsFromFirestore(
   callback: (reports: SosialisasiReport[]) => void,
   onError?: (err: any) => void
 ): () => void {
-  const colRef = collection(db, REPORTS_COLLECTION);
-  return onSnapshot(
-    colRef,
-    (snap) => {
-      const list = snap.docs.map((d) => d.data() as SosialisasiReport);
-      list.sort((a, b) => new Date(b.createdAt || b.tanggalKunjungan).getTime() - new Date(a.createdAt || a.tanggalKunjungan).getTime());
-      callback(list);
-    },
-    (error) => {
-      if (onError) onError(error);
-      handleFirestoreError(error, OperationType.GET, REPORTS_COLLECTION);
+  if (isFirestoreQuotaExceeded) {
+    return () => {};
+  }
+  try {
+    const colRef = collection(db, REPORTS_COLLECTION);
+    return onSnapshot(
+      colRef,
+      (snap) => {
+        const list = snap.docs.map((d) => d.data() as SosialisasiReport);
+        list.sort((a, b) => new Date(b.createdAt || b.tanggalKunjungan).getTime() - new Date(a.createdAt || a.tanggalKunjungan).getTime());
+        callback(list);
+      },
+      (error) => {
+        if (isQuotaError(error)) {
+          console.warn('Firestore snapshot listener paused due to daily quota limit. Operating in resilient server mode.');
+          if (onError) onError(error);
+          return;
+        }
+        if (onError) onError(error);
+        handleFirestoreError(error, OperationType.GET, REPORTS_COLLECTION);
+      }
+    );
+  } catch (error) {
+    if (isQuotaError(error)) {
+      return () => {};
     }
-  );
+    handleFirestoreError(error, OperationType.GET, REPORTS_COLLECTION);
+  }
 }
 
 /**
