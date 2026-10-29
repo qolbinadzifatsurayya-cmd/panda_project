@@ -26,7 +26,7 @@ import {
   Compass,
   Layers
 } from 'lucide-react';
-import { SosialisasiReport, WilayahName, DAFTAR_WILAYAH, TARGET_RULES, DEFAULT_WILAYAH_PINS } from '../types';
+import { SosialisasiReport, WilayahName, DAFTAR_WILAYAH, TARGET_RULES, DEFAULT_WILAYAH_PINS, getTeamInfo } from '../types';
 import { ReportTable } from './ReportTable';
 import { TargetProgressCard } from './TargetProgressCard';
 import { JabodetabekRoadshowView } from './JabodetabekRoadshowView';
@@ -75,7 +75,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const wilayahStats = stats?.wilayahStats || [];
 
   const jabodetabekReports = allReports.filter(
-    (r) => r.isJabodetabek || r.wilayah === 'Jabodetabek' || (r.daerahRoadshow && r.daerahRoadshow.trim() !== '')
+    (r) =>
+      Boolean(r.isJabodetabek) ||
+      (r.wilayah && r.wilayah.trim().toLowerCase() === 'jabodetabek') ||
+      Boolean(r.daerahRoadshow && r.daerahRoadshow.trim() !== '') ||
+      Boolean(r.picRoadshow && r.picRoadshow.trim() !== '') ||
+      Boolean(getTeamInfo(r.picRoadshow))
   );
 
   const handleCopyPin = (wilayah: string, pin: string) => {

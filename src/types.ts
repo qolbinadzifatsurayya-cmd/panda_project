@@ -75,23 +75,72 @@ export const LIST_TIM_ROADSHOW: TimRoadshowItem[] = [
 // Daftar tim roadshow default dengan nama anggota untuk kemudahan input
 export const DAFTAR_DEFAULT_TIM_ROADSHOW = LIST_TIM_ROADSHOW.map((t) => t.fullName);
 
-// Helper function untuk mencari info tim berdasarkan nama input atau nomor
+// Helper function untuk mencari info tim secara akurat (mencegah bentrokan substring seperti 'tim 11' mencocokkan 'tim 1')
 export const getTeamInfo = (rawName?: string): TimRoadshowItem | undefined => {
   if (!rawName) return undefined;
-  const str = rawName.trim().toLowerCase();
-  return LIST_TIM_ROADSHOW.find((t) => {
-    const tTim = t.tim.toLowerCase();
-    const tFull = t.fullName.toLowerCase();
-    const tAnggota = t.namaAnggota.toLowerCase();
-    return (
-      str === tTim ||
-      str === tFull ||
-      str === tAnggota ||
-      str.includes(tTim) ||
-      str.includes(tAnggota) ||
-      tFull.includes(str)
-    );
-  });
+  const str = String(rawName).trim();
+  const lower = str.toLowerCase();
+
+  // 1. Exact match pada fullName, tim, atau namaAnggota
+  for (const t of LIST_TIM_ROADSHOW) {
+    if (
+      lower === t.fullName.toLowerCase() ||
+      lower === t.tim.toLowerCase() ||
+      lower === t.namaAnggota.toLowerCase()
+    ) {
+      return t;
+    }
+  }
+
+  // 2. Exact match dengan kata 'dan' menggantikan '&'
+  for (const t of LIST_TIM_ROADSHOW) {
+    const withDan = t.namaAnggota.toLowerCase().replace(/&/g, 'dan');
+    const fullWithDan = t.fullName.toLowerCase().replace(/&/g, 'dan');
+    if (lower === withDan || lower === fullWithDan) {
+      return t;
+    }
+  }
+
+  // 3. Strict regex match nomor tim dengan batasan kata (\b) sehingga "tim 11" TIDAK PERNAH mencocokkan "tim 1"
+  const timNumMatch = lower.match(/\btim\s*[-_]?\s*(\d+)\b/);
+  if (timNumMatch) {
+    const num = parseInt(timNumMatch[1], 10);
+    const found = LIST_TIM_ROADSHOW.find((t) => t.id === num);
+    if (found) return found;
+  }
+
+  // 4. Pencocokan jika kedua nama anggota terdapat dalam teks (misal: "Dika & Yusuf" atau "Yusuf dan Dika")
+  for (const t of LIST_TIM_ROADSHOW) {
+    const parts = t.namaAnggota.toLowerCase().split(/[&,]/).map((s) => s.trim()).filter(Boolean);
+    const matchAll = parts.every((p) => {
+      const words = p.split(/\s+/);
+      return words.some((w) => lower.includes(w));
+    });
+    if (matchAll && parts.length > 0) return t;
+  }
+
+  // 5. Pencocokan kata kunci nama khas yang unik per tim
+  if (lower.includes('dika')) return LIST_TIM_ROADSHOW.find((t) => t.id === 11);
+  if (lower.includes('asmat')) return LIST_TIM_ROADSHOW.find((t) => t.id === 4);
+  if (lower.includes('teguh') || lower.includes('abdul')) return LIST_TIM_ROADSHOW.find((t) => t.id === 1);
+  if (lower.includes('akmal') || lower.includes('asep')) return LIST_TIM_ROADSHOW.find((t) => t.id === 2);
+  if (lower.includes('enoh') || lower.includes('alfin')) return LIST_TIM_ROADSHOW.find((t) => t.id === 3);
+  if (lower.includes('agil') || lower.includes('ervan')) return LIST_TIM_ROADSHOW.find((t) => t.id === 5);
+  if (lower.includes('miftah') || lower.includes('fauzan')) return LIST_TIM_ROADSHOW.find((t) => t.id === 6);
+  if (lower.includes('dian')) return LIST_TIM_ROADSHOW.find((t) => t.id === 7);
+  if (lower.includes('irsan') || lower.includes('troy')) return LIST_TIM_ROADSHOW.find((t) => t.id === 8);
+  if (lower.includes('pentry') || lower.includes('edo')) return LIST_TIM_ROADSHOW.find((t) => t.id === 9);
+  if (lower.includes('susilo') || lower.includes('syamil')) return LIST_TIM_ROADSHOW.find((t) => t.id === 10);
+  if (lower.includes('romlih') || lower.includes('sucipto')) return LIST_TIM_ROADSHOW.find((t) => t.id === 12);
+  if (lower.includes('yulia') || lower.includes('nada')) return LIST_TIM_ROADSHOW.find((t) => t.id === 13);
+  if (lower.includes('miqdad') || lower.includes('saiful')) return LIST_TIM_ROADSHOW.find((t) => t.id === 14);
+  if (lower.includes('izah') || lower.includes('ida')) return LIST_TIM_ROADSHOW.find((t) => t.id === 15);
+  if (lower.includes('zahroh') || lower.includes('ratih')) return LIST_TIM_ROADSHOW.find((t) => t.id === 16);
+  if (lower.includes('deden') || lower.includes('agus')) return LIST_TIM_ROADSHOW.find((t) => t.id === 17);
+  if (lower.includes('anwar') || lower.includes('rudy')) return LIST_TIM_ROADSHOW.find((t) => t.id === 18);
+  if (lower.includes('sayla') || lower.includes('dhita')) return LIST_TIM_ROADSHOW.find((t) => t.id === 19);
+
+  return undefined;
 };
 
 export interface KabupatenStats {

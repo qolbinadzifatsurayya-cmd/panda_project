@@ -413,6 +413,17 @@ app.get('/api/stats', (_req: Request, res: Response) => {
   let grandTotalAudience = 0;
   let grandTotalPendaftar = 0;
 
+  // Calculate cumulative national totals across ALL reports (14 Wilayah & Roadshow Jabodetabek)
+  reports.forEach((r) => {
+    if (r.jenjang === 'SD') {
+      grandTotalSD += 1;
+    } else {
+      grandTotalSMP += 1;
+    }
+    grandTotalAudience += Number(r.jumlahAudience) || 0;
+    grandTotalPendaftar += Number(r.jumlahPendaftar) || 0;
+  });
+
   // Process stats for all 14 official regions
   const wilayahStats = DAFTAR_WILAYAH.map((wilayah) => {
     const wilayahReports = reports.filter(
@@ -451,23 +462,19 @@ app.get('/api/stats', (_req: Request, res: Response) => {
       }
 
       kabMap[kab].totalSekolah += 1;
-      kabMap[kab].audienceCount += r.jumlahAudience;
-      kabMap[kab].pendaftarCount += r.jumlahPendaftar;
+      kabMap[kab].audienceCount += Number(r.jumlahAudience) || 0;
+      kabMap[kab].pendaftarCount += Number(r.jumlahPendaftar) || 0;
 
       if (r.jenjang === 'SD') {
         kabMap[kab].sdCount += 1;
         totalSD += 1;
-        grandTotalSD += 1;
       } else {
         kabMap[kab].smpCount += 1;
         totalSMP += 1;
-        grandTotalSMP += 1;
       }
 
-      totalAudience += r.jumlahAudience;
-      totalPendaftar += r.jumlahPendaftar;
-      grandTotalAudience += r.jumlahAudience;
-      grandTotalPendaftar += r.jumlahPendaftar;
+      totalAudience += Number(r.jumlahAudience) || 0;
+      totalPendaftar += Number(r.jumlahPendaftar) || 0;
     });
 
     const kabupatenList = Object.values(kabMap).map((k) => {

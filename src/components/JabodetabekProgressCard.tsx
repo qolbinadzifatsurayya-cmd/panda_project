@@ -70,10 +70,11 @@ export const JabodetabekProgressCard: React.FC<JabodetabekProgressCardProps> = (
   > = {};
 
   reports.forEach((r) => {
-    const rawPic = (r.picRoadshow || 'Tim Lainnya').trim();
-    if (!teamMap[rawPic]) {
-      teamMap[rawPic] = {
-        name: rawPic,
+    const info = getTeamInfo(r.picRoadshow);
+    const teamKey = info ? info.fullName : (r.picRoadshow || 'Tim Lainnya').trim();
+    if (!teamMap[teamKey]) {
+      teamMap[teamKey] = {
+        name: teamKey,
         total: 0,
         sd: 0,
         smp: 0,
@@ -82,13 +83,13 @@ export const JabodetabekProgressCard: React.FC<JabodetabekProgressCardProps> = (
         daerahList: [],
       };
     }
-    teamMap[rawPic].total += 1;
-    if (r.jenjang === 'SD') teamMap[rawPic].sd += 1;
-    else teamMap[rawPic].smp += 1;
-    teamMap[rawPic].audience += Number(r.jumlahAudience) || 0;
-    teamMap[rawPic].pendaftar += Number(r.jumlahPendaftar) || 0;
-    if (r.daerahRoadshow && !teamMap[rawPic].daerahList.includes(r.daerahRoadshow)) {
-      teamMap[rawPic].daerahList.push(r.daerahRoadshow);
+    teamMap[teamKey].total += 1;
+    if (r.jenjang === 'SD') teamMap[teamKey].sd += 1;
+    else teamMap[teamKey].smp += 1;
+    teamMap[teamKey].audience += Number(r.jumlahAudience) || 0;
+    teamMap[teamKey].pendaftar += Number(r.jumlahPendaftar) || 0;
+    if (r.daerahRoadshow && !teamMap[teamKey].daerahList.includes(r.daerahRoadshow)) {
+      teamMap[teamKey].daerahList.push(r.daerahRoadshow);
     }
   });
 

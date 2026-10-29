@@ -87,12 +87,23 @@ function saveLocalReports(reports: SosialisasiReport[]) {
   }
 }
 
-// Helper: compute statistics in-browser with exact 14-region KPI criteria
+// Helper: compute statistics in-browser with exact 14-region KPI criteria & full national cumulative
 export function computeStatsFromReports(reports: SosialisasiReport[]): StatsResponse {
   let grandTotalSD = 0;
   let grandTotalSMP = 0;
   let grandTotalAudience = 0;
   let grandTotalPendaftar = 0;
+
+  // Calculate cumulative national totals across ALL reports (14 Wilayah & Roadshow Jabodetabek)
+  reports.forEach((r) => {
+    if (r.jenjang === 'SD') {
+      grandTotalSD += 1;
+    } else {
+      grandTotalSMP += 1;
+    }
+    grandTotalAudience += Number(r.jumlahAudience) || 0;
+    grandTotalPendaftar += Number(r.jumlahPendaftar) || 0;
+  });
 
   const wilayahStats: WilayahTargetProgress[] = DAFTAR_WILAYAH.map((wilayah) => {
     const wilayahReports = reports.filter(
@@ -129,17 +140,13 @@ export function computeStatsFromReports(reports: SosialisasiReport[]): StatsResp
       if (r.jenjang === 'SD') {
         kabMap[kab].sdCount += 1;
         totalSD += 1;
-        grandTotalSD += 1;
       } else {
         kabMap[kab].smpCount += 1;
         totalSMP += 1;
-        grandTotalSMP += 1;
       }
 
       totalAudience += Number(r.jumlahAudience) || 0;
       totalPendaftar += Number(r.jumlahPendaftar) || 0;
-      grandTotalAudience += Number(r.jumlahAudience) || 0;
-      grandTotalPendaftar += Number(r.jumlahPendaftar) || 0;
     });
 
     const kabupatenList: KabupatenStats[] = Object.values(kabMap).map((k) => {
