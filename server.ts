@@ -13,10 +13,15 @@ const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = path.resolve(__dirname, 'data');
 const DATA_FILE = path.resolve(DATA_DIR, 'reports.json');
 const CONFIG_FILE = path.resolve(DATA_DIR, 'config.json');
+const PUBLIC_DATA_DIR = path.resolve(__dirname, 'public', 'data');
+const PUBLIC_DATA_FILE = path.resolve(PUBLIC_DATA_DIR, 'reports.json');
 
-// Ensure data folder exists
+// Ensure data and public/data folders exist
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(PUBLIC_DATA_DIR)) {
+  fs.mkdirSync(PUBLIC_DATA_DIR, { recursive: true });
 }
 
 interface ReportItem {
@@ -35,9 +40,6 @@ interface ReportItem {
   dokumentasiList?: string[];
   createdAt: string;
   updatedAt: string;
-  picRoadshow?: string;
-  daerahRoadshow?: string;
-  isJabodetabek?: boolean;
 }
 
 interface AppConfig {
@@ -79,6 +81,7 @@ function loadReports(): ReportItem[] {
 function saveReports(reports: ReportItem[]): void {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(reports, null, 2), 'utf-8');
+    fs.writeFileSync(PUBLIC_DATA_FILE, JSON.stringify(reports, null, 2), 'utf-8');
   } catch (err) {
     console.error('Error writing reports file:', err);
   }
@@ -166,6 +169,12 @@ app.post('/api/upload', (req: Request, res: Response) => {
     const filePath = path.resolve(UPLOADS_DIR, safeName);
     fs.writeFileSync(filePath, buffer);
 
+    const publicUploadsDir = path.resolve(__dirname, 'public', 'uploads');
+    if (!fs.existsSync(publicUploadsDir)) {
+      fs.mkdirSync(publicUploadsDir, { recursive: true });
+    }
+    fs.writeFileSync(path.resolve(publicUploadsDir, safeName), buffer);
+
     const publicUrl = `/uploads/${safeName}`;
     res.json({ success: true, url: publicUrl, filename: safeName });
   } catch (err: any) {
@@ -187,6 +196,7 @@ app.get('/api/reports', (req: Request, res: Response) => {
 app.post('/api/reports', async (req: Request, res: Response) => {
   try {
     const {
+      id,
       wilayah,
       kabupatenKota,
       jenjang,
@@ -199,9 +209,8 @@ app.post('/api/reports', async (req: Request, res: Response) => {
       catatan,
       dokumentasiUrl,
       dokumentasiList,
-      picRoadshow,
-      daerahRoadshow,
-      isJabodetabek,
+      createdAt,
+      updatedAt,
     } = req.body;
 
     if (!wilayah || !sekolah) {
@@ -212,10 +221,11 @@ app.post('/api/reports', async (req: Request, res: Response) => {
       return;
     }
 
-    const effectiveKab = String(kabupatenKota || daerahRoadshow || wilayah || 'Umum').trim();
+    const effectiveKab = String(kabupatenKota || wilayah || 'Umum').trim();
+    const now = new Date().toISOString();
 
     const newReport: ReportItem = {
-      id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: String(id || `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
       wilayah: String(wilayah).trim(),
       kabupatenKota: effectiveKab,
       jenjang: jenjang === 'SMP' ? 'SMP' : 'SD',
@@ -224,19 +234,21 @@ app.post('/api/reports', async (req: Request, res: Response) => {
       kontak: String(kontak || '-').trim(),
       jumlahAudience: Math.max(0, Number(jumlahAudience) || 0),
       jumlahPendaftar: Math.max(0, Number(jumlahPendaftar) || 0),
-      tanggalKunjungan: tanggalKunjungan || new Date().toISOString().split('T')[0],
+      tanggalKunjungan: tanggalKunjungan || now.split('T')[0],
       catatan: catatan ? String(catatan).trim() : '',
       dokumentasiUrl: dokumentasiUrl ? String(dokumentasiUrl).trim() : '',
       dokumentasiList: Array.isArray(dokumentasiList) ? dokumentasiList : dokumentasiUrl ? [dokumentasiUrl] : [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      picRoadshow: picRoadshow ? String(picRoadshow).trim() : '',
-      daerahRoadshow: daerahRoadshow ? String(daerahRoadshow).trim() : effectiveKab,
-      isJabodetabek: Boolean(isJabodetabek || String(wilayah).toLowerCase() === 'jabodetabek'),
+      createdAt: createdAt || now,
+      updatedAt: updatedAt || now,
     };
 
-    const current = loadReports();
-    current.unshift(newReport);
+    let current = loadReports();
+    const existingIdx = current.findIndex((r) => r.id === newReport.id);
+    if (existingIdx >= 0) {
+      current[existingIdx] = newReport;
+    } else {
+      current.unshift(newReport);
+    }
     saveReports(current);
 
     res.status(201).json({ success: true, data: newReport });
@@ -254,18 +266,19 @@ app.post('/api/reports/batch', async (req: Request, res: Response) => {
       return;
     }
 
-    const current = loadReports();
+    let current = loadReports();
     const newItems: ReportItem[] = [];
+    const now = new Date().toISOString();
 
     for (const item of reports) {
       if (!item.wilayah || !item.sekolah || String(item.sekolah).trim() === '') {
         continue; // skip rows without school name
       }
 
-      const effectiveKab = String(item.kabupatenKota || item.daerahRoadshow || item.wilayah || 'Umum').trim();
+      const effectiveKab = String(item.kabupatenKota || item.wilayah || 'Umum').trim();
 
       const newReport: ReportItem = {
-        id: `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${newItems.length}`,
+        id: String(item.id || `rep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}-${newItems.length}`),
         wilayah: String(item.wilayah).trim(),
         kabupatenKota: effectiveKab,
         jenjang: item.jenjang === 'SMP' ? 'SMP' : 'SD',
@@ -274,16 +287,20 @@ app.post('/api/reports/batch', async (req: Request, res: Response) => {
         kontak: String(item.kontak || '-').trim(),
         jumlahAudience: Math.max(0, Number(item.jumlahAudience) || 0),
         jumlahPendaftar: Math.max(0, Number(item.jumlahPendaftar) || 0),
-        tanggalKunjungan: item.tanggalKunjungan || new Date().toISOString().split('T')[0],
+        tanggalKunjungan: item.tanggalKunjungan || now.split('T')[0],
         catatan: item.catatan ? String(item.catatan).trim() : '',
         dokumentasiUrl: item.dokumentasiUrl ? String(item.dokumentasiUrl).trim() : '',
         dokumentasiList: Array.isArray(item.dokumentasiList) ? item.dokumentasiList : item.dokumentasiUrl ? [item.dokumentasiUrl] : [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        picRoadshow: item.picRoadshow ? String(item.picRoadshow).trim() : '',
-        daerahRoadshow: item.daerahRoadshow ? String(item.daerahRoadshow).trim() : effectiveKab,
-        isJabodetabek: Boolean(item.isJabodetabek || String(item.wilayah).toLowerCase() === 'jabodetabek'),
+        createdAt: item.createdAt || now,
+        updatedAt: item.updatedAt || now,
       };
+
+      const existingIdx = current.findIndex((r) => r.id === newReport.id);
+      if (existingIdx >= 0) {
+        current[existingIdx] = newReport;
+      } else {
+        current.unshift(newReport);
+      }
       newItems.push(newReport);
     }
 
@@ -292,7 +309,6 @@ app.post('/api/reports/batch', async (req: Request, res: Response) => {
       return;
     }
 
-    current.unshift(...newItems);
     saveReports(current);
 
     res.status(201).json({ success: true, count: newItems.length, data: newItems });
@@ -329,9 +345,6 @@ app.put('/api/reports/:id', async (req: Request, res: Response) => {
       catatan: body.catatan !== undefined ? String(body.catatan).trim() : existing.catatan,
       dokumentasiUrl: body.dokumentasiUrl !== undefined ? body.dokumentasiUrl : existing.dokumentasiUrl,
       dokumentasiList: Array.isArray(body.dokumentasiList) ? body.dokumentasiList : existing.dokumentasiList,
-      picRoadshow: body.picRoadshow !== undefined ? String(body.picRoadshow).trim() : existing.picRoadshow,
-      daerahRoadshow: body.daerahRoadshow !== undefined ? String(body.daerahRoadshow).trim() : existing.daerahRoadshow,
-      isJabodetabek: body.isJabodetabek !== undefined ? Boolean(body.isJabodetabek) : existing.isJabodetabek,
       updatedAt: new Date().toISOString(),
     };
 

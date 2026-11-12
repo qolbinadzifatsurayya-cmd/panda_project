@@ -18,12 +18,6 @@ import {
   AdminDashboard 
 } from './components/AdminDashboard';
 import { 
-  JabodetabekRoadshowView 
-} from './components/JabodetabekRoadshowView';
-import { 
-  JabodetabekFormModal 
-} from './components/JabodetabekFormModal';
-import { 
   PrintReportView 
 } from './components/PrintReportView';
 import { 
@@ -55,12 +49,16 @@ interface ToastMessage {
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<{
-    role: 'admin' | 'wilayah' | 'jabodetabek' | null;
+    role: 'admin' | 'wilayah' | null;
     wilayah?: WilayahName;
   }>(() => {
     try {
       const saved = localStorage.getItem('sensei_user_session');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'jabodetabek') return { role: null };
+        return parsed;
+      }
     } catch {}
     return { role: null };
   });
@@ -73,8 +71,6 @@ export default function App() {
   // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingReport, setEditingReport] = useState<SosialisasiReport | null>(null);
-  const [isJabodetabekModalOpen, setIsJabodetabekModalOpen] = useState(false);
-  const [editingJabodetabekReport, setEditingJabodetabekReport] = useState<SosialisasiReport | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<{ id: string; sekolah: string } | null>(null);
 
@@ -139,7 +135,7 @@ export default function App() {
   }, []);
 
   // Persist session
-  const saveSession = (session: { role: 'admin' | 'wilayah' | 'jabodetabek' | null; wilayah?: WilayahName }) => {
+  const saveSession = (session: { role: 'admin' | 'wilayah' | null; wilayah?: WilayahName }) => {
     setCurrentUser(session);
     try {
       localStorage.setItem('sensei_user_session', JSON.stringify(session));
@@ -160,11 +156,6 @@ export default function App() {
     showToast(`Masuk ke halaman kerja Wilayah: ${wilayah}`, 'info');
   };
 
-  const handleSelectJabodetabek = () => {
-    saveSession({ role: 'jabodetabek' });
-    showToast('Masuk ke Halaman Panitia Roadshow Jabodetabek (Target: 19 Tim, Total 285 Sekolah)', 'info');
-  };
-
   const handleLogout = () => {
     saveSession({ role: null });
     showToast('Berhasil keluar dari akun', 'info');
@@ -177,7 +168,7 @@ export default function App() {
       | Omit<SosialisasiReport, 'id' | 'createdAt' | 'updatedAt'>[]
   ) => {
     try {
-      const targetEdit = editingReport || (editingJabodetabekReport?.id ? editingJabodetabekReport : null);
+      const targetEdit = editingReport;
       if (Array.isArray(data)) {
         const createdList = await api.createBatchReports(data);
         showToast(`Berhasil menyimpan ${createdList.length} laporan sekolah ke cloud database!`, 'success');
@@ -205,7 +196,6 @@ export default function App() {
         });
       }
       setEditingReport(null);
-      setEditingJabodetabekReport(null);
       await fetchData(true);
     } catch (err: any) {
       console.error('Save report error:', err);
@@ -321,7 +311,6 @@ export default function App() {
           <LoginModal
             onLoginAdmin={handleAdminLogin}
             onSelectWilayah={handleSelectWilayah}
-            onSelectJabodetabek={handleSelectJabodetabek}
           />
         ) : currentUser.role === 'admin' ? (
           /* Admin Pusat Dashboard */
@@ -335,13 +324,8 @@ export default function App() {
                 showToast(`Membuka tampilan wilayah: ${w}`, 'info');
               }}
               onEditReport={(rep) => {
-                if (rep.isJabodetabek || rep.wilayah === 'Jabodetabek' || (rep.daerahRoadshow && rep.daerahRoadshow.trim() !== '')) {
-                  setEditingJabodetabekReport(rep);
-                  setIsJabodetabekModalOpen(true);
-                } else {
-                  setEditingReport(rep);
-                  setIsFormOpen(true);
-                }
+                setEditingReport(rep);
+                setIsFormOpen(true);
               }}
               onDeleteReport={(id, sekolah) => {
                 setDeleteCandidate({ id, sekolah });
@@ -351,54 +335,7 @@ export default function App() {
                 setEditingReport(null);
                 setIsFormOpen(true);
               }}
-              onAddNewJabodetabekReport={(defaultTeam) => {
-                if (defaultTeam) {
-                  setEditingJabodetabekReport({
-                    id: '',
-                    wilayah: 'Jabodetabek',
-                    kabupatenKota: 'Kota Bogor',
-                    daerahRoadshow: 'Kota Bogor',
-                    picRoadshow: defaultTeam,
-                    jenjang: 'SD',
-                    sekolah: '',
-                    pic: '',
-                    kontak: '',
-                    jumlahAudience: 0,
-                    jumlahPendaftar: 0,
-                    tanggalKunjungan: new Date().toISOString().split('T')[0],
-                    isJabodetabek: true,
-                    createdAt: '',
-                    updatedAt: '',
-                  } as SosialisasiReport);
-                } else {
-                  setEditingJabodetabekReport(null);
-                }
-                setIsJabodetabekModalOpen(true);
-              }}
               onPrintPreview={() => setIsPrintModalOpen(true)}
-            />
-          </div>
-        ) : currentUser.role === 'jabodetabek' ? (
-          /* Halaman Panitia Roadshow Jabodetabek (Target Maks. 15 Sekolah) */
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-            <JabodetabekRoadshowView
-              reports={allReports.filter(
-                (r) => r.isJabodetabek || r.wilayah === 'Jabodetabek' || (r.daerahRoadshow && r.daerahRoadshow.trim() !== '')
-              )}
-              onAddNewReport={() => {
-                setEditingJabodetabekReport(null);
-                setIsJabodetabekModalOpen(true);
-              }}
-              onEditReport={(rep) => {
-                setEditingJabodetabekReport(rep);
-                setIsJabodetabekModalOpen(true);
-              }}
-              onDeleteReport={(id, sekolah) => {
-                setDeleteCandidate({ id, sekolah });
-              }}
-              onBatchDeleteReport={handleBatchDelete}
-              isStandalonePage={true}
-              onBackToAdmin={handleLogout}
             />
           </div>
         ) : (
@@ -552,16 +489,6 @@ export default function App() {
         existingKabupatenList={existingKabupatenForCurrentWilayah}
       />
 
-      {/* Jabodetabek Roadshow Form Modal */}
-      <JabodetabekFormModal
-        isOpen={isJabodetabekModalOpen}
-        onClose={() => {
-          setIsJabodetabekModalOpen(false);
-          setEditingJabodetabekReport(null);
-        }}
-        onSubmit={handleSaveReport}
-        initialData={editingJabodetabekReport}
-      />
 
       {/* Official Print/PDF Modal */}
       <PrintReportView

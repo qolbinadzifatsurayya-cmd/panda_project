@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",
-    "build": "vite build",
+    "build": "node -e \"import fs from 'fs'; if(fs.existsSync('data/reports.json')) { fs.mkdirSync('public/data', {recursive:true}); fs.copyFileSync('data/reports.json', 'public/data/reports.json'); } if(fs.existsSync('data/uploads')) { fs.mkdirSync('public/uploads', {recursive:true}); fs.cpSync('data/uploads', 'public/uploads', {recursive:true}); }\" && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

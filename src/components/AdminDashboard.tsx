@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Building2, 
   MapPin, 
@@ -23,15 +23,12 @@ import {
   ArrowLeft,
   Copy,
   Check,
-  Compass,
-  Layers
+  Upload
 } from 'lucide-react';
-import { SosialisasiReport, WilayahName, DAFTAR_WILAYAH, TARGET_RULES, DEFAULT_WILAYAH_PINS, getTeamInfo } from '../types';
+import { SosialisasiReport, WilayahName, DAFTAR_WILAYAH, TARGET_RULES, DEFAULT_WILAYAH_PINS } from '../types';
 import { ReportTable } from './ReportTable';
 import { TargetProgressCard } from './TargetProgressCard';
-import { JabodetabekRoadshowView } from './JabodetabekRoadshowView';
-import { JabodetabekMatrixTable } from './JabodetabekMatrixTable';
-import { StatsResponse } from '../services/api';
+import { StatsResponse, api } from '../services/api';
 
 interface AdminDashboardProps {
   stats: StatsResponse | null;
@@ -41,7 +38,6 @@ interface AdminDashboardProps {
   onDeleteReport: (id: string, sekolah: string) => void;
   onBatchDeleteReport: (ids: string[]) => void;
   onAddNewReport: () => void;
-  onAddNewJabodetabekReport?: (defaultTeam?: string) => void;
   onPrintPreview: () => void;
 }
 
@@ -53,12 +49,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onDeleteReport,
   onBatchDeleteReport,
   onAddNewReport,
-  onAddNewJabodetabekReport,
   onPrintPreview,
 }) => {
-  const [activeTab, setActiveTab] = useState<'matrix' | 'matrix-jabodetabek' | 'jabodetabek' | 'all-reports' | 'pins'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'all-reports' | 'pins'>('matrix');
   const [selectedDrillWilayah, setSelectedDrillWilayah] = useState<WilayahName | null>(null);
   const [copiedPin, setCopiedPin] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportJson = () => {
+    const dataStr = api.exportReportsToJson();
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sensei2027_reports_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsImporting(true);
+      const text = await file.text();
+      const count = await api.importReportsFromJson(text);
+      alert(`Berhasil mengimpor dan menyinkronkan ${count} laporan ke sistem & cloud database! Halaman akan memuat ulang data.`);
+      window.location.reload();
+    } catch (err: any) {
+      alert(`Gagal mengimpor file JSON: ${err.message || 'Format tidak valid'}`);
+    } finally {
+      setIsImporting(false);
+      if (jsonFileInputRef.current) jsonFileInputRef.current.value = '';
+    }
+  };
 
   const summary = stats?.summary || {
     grandTotalSekolah: allReports.length,
@@ -73,15 +98,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const wilayahStats = stats?.wilayahStats || [];
-
-  const jabodetabekReports = allReports.filter(
-    (r) =>
-      Boolean(r.isJabodetabek) ||
-      (r.wilayah && r.wilayah.trim().toLowerCase() === 'jabodetabek') ||
-      Boolean(r.daerahRoadshow && r.daerahRoadshow.trim() !== '') ||
-      Boolean(r.picRoadshow && r.picRoadshow.trim() !== '') ||
-      Boolean(getTeamInfo(r.picRoadshow))
-  );
 
   const handleCopyPin = (wilayah: string, pin: string) => {
     navigator.clipboard.writeText(pin);
@@ -178,6 +194,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <input
+              type="file"
+              ref={jsonFileInputRef}
+              onChange={handleImportJson}
+              accept=".json"
+              className="hidden"
+            />
+            <button
+              onClick={handleExportJson}
+              title="Unduh seluruh data laporan sebagai file JSON untuk dicadangkan atau disimpan ke GitHub"
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-colors flex items-center space-x-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Backup JSON</span>
+            </button>
+            <button
+              onClick={() => jsonFileInputRef.current?.click()}
+              disabled={isImporting}
+              title="Impor dan sinkronkan data dari file cadangan JSON"
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-colors flex items-center space-x-1.5 cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5 text-sky-400" />
+              <span>{isImporting ? 'Mengimpor...' : 'Impor JSON'}</span>
+            </button>
             <button
               onClick={onPrintPreview}
               className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-colors flex items-center space-x-1.5 cursor-pointer"
@@ -286,37 +326,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('matrix-jabodetabek')}
-          className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
-            activeTab === 'matrix-jabodetabek'
-              ? 'border-sky-600 text-sky-700 font-extrabold'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Compass className="w-4 h-4 text-sky-600" />
-          <span>Matriks Capaian Roadshow Jabodetabek</span>
-          <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold ${
-            activeTab === 'matrix-jabodetabek'
-              ? 'bg-sky-100 text-sky-800'
-              : 'bg-slate-100 text-slate-600'
-          }`}>
-            19 Tim • {jabodetabekReports.length}/285
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('jabodetabek')}
-          className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
-            activeTab === 'jabodetabek'
-              ? 'border-teal-600 text-teal-700 font-extrabold'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Layers className="w-4 h-4 text-teal-600" />
-          <span>Rincian Laporan Roadshow</span>
-        </button>
-
-        <button
           onClick={() => setActiveTab('all-reports')}
           className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center space-x-2 cursor-pointer shrink-0 ${
             activeTab === 'all-reports'
@@ -344,32 +353,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Tab 1: 14 Wilayah Progress Matrix */}
       {activeTab === 'matrix' && (
         <div className="space-y-6">
-          {/* Quick link banner to Roadshow Jabodetabek Matrix */}
-          <div className="p-4 bg-sky-50 border border-sky-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-sky-950 shadow-xs">
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 bg-sky-100 text-sky-700 rounded-xl shrink-0">
-                <Compass className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="font-extrabold text-sm text-sky-950 flex items-center space-x-1.5">
-                  <span>Matriks Capaian Sosialisasi Roadshow Jabodetabek</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-200 text-sky-800">
-                    19 Tim • Target 285 Sekolah
-                  </span>
-                </div>
-                <p className="text-slate-600 text-xs mt-0.5">
-                  Panitia pusat menyelenggarakan roadshow ke 19 tim wilayah Jabodetabek dengan kuota maksimal 15 sekolah per tim (kumulatif 285 sekolah).
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setActiveTab('matrix-jabodetabek')}
-              className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
-            >
-              <span>Buka Matriks Roadshow Jabodetabek</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+
 
           <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -493,40 +477,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Tab: Matriks Capaian Sosialisasi Roadshow Jabodetabek (19 Tim, Max 15 Sekolah/Tim, Total 285) */}
-      {activeTab === 'matrix-jabodetabek' && (
-        <JabodetabekMatrixTable
-          reports={jabodetabekReports}
-          onAddNewReport={(defaultTeam) => {
-            if (onAddNewJabodetabekReport) {
-              onAddNewJabodetabekReport(defaultTeam);
-            } else {
-              onAddNewReport();
-            }
-          }}
-          onEditReport={onEditReport}
-          onDeleteReport={onDeleteReport}
-          onBatchDeleteReport={onBatchDeleteReport}
-        />
-      )}
-
-      {/* Tab: Halaman Panitia Jabodetabek (Rincian & Filter Laporan) */}
-      {activeTab === 'jabodetabek' && (
-        <JabodetabekRoadshowView
-          reports={jabodetabekReports}
-          onAddNewReport={() => {
-            if (onAddNewJabodetabekReport) {
-              onAddNewJabodetabekReport();
-            } else {
-              onAddNewReport();
-            }
-          }}
-          onEditReport={onEditReport}
-          onDeleteReport={onDeleteReport}
-          onBatchDeleteReport={onBatchDeleteReport}
-        />
       )}
 
       {/* Tab 2: Seluruh Data Laporan with Direct Delete Buttons */}

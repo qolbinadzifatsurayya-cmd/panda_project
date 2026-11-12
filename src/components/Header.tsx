@@ -12,7 +12,7 @@ import { WilayahName } from '../types';
 
 interface HeaderProps {
   currentUser: {
-    role: 'admin' | 'wilayah' | 'jabodetabek' | null;
+    role: 'admin' | 'wilayah' | null;
     wilayah?: WilayahName;
   };
   onLogout: () => void;
@@ -72,11 +72,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="flex items-center space-x-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-md text-xs font-semibold">
                       <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
                       <span>Admin Pusat</span>
-                    </div>
-                  ) : currentUser.role === 'jabodetabek' ? (
-                    <div className="flex items-center space-x-1.5 bg-teal-500/10 text-teal-300 border border-teal-500/30 px-2.5 py-1 rounded-md text-xs font-semibold">
-                      <MapPin className="w-3.5 h-3.5 text-teal-400" />
-                      <span>Roadshow Jabodetabek</span>
                     </div>
                   ) : (
                     <div className="flex items-center space-x-1.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-md text-xs font-semibold">

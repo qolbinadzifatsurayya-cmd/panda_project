@@ -94,7 +94,7 @@ export function computeStatsFromReports(reports: SosialisasiReport[]): StatsResp
   let grandTotalAudience = 0;
   let grandTotalPendaftar = 0;
 
-  // Calculate cumulative national totals across ALL reports (14 Wilayah & Roadshow Jabodetabek)
+  // Calculate cumulative national totals across all 14 official regional reports
   reports.forEach((r) => {
     if (r.jenjang === 'SD') {
       grandTotalSD += 1;
@@ -234,12 +234,12 @@ export const api = {
   async getReports(wilayah?: string): Promise<SosialisasiReport[]> {
     const deletedSet = getDeletedIds();
 
-    // 1. Fetch from server API
+    // 1. Fetch from server API with 6-second timeout
     let serverReports: SosialisasiReport[] = [];
     try {
       const url = wilayah ? `/api/reports?wilayah=${encodeURIComponent(wilayah)}` : '/api/reports';
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
 
@@ -249,7 +249,9 @@ export const api = {
           serverReports = json.data;
         }
       }
-    } catch {}
+    } catch (err) {
+      console.warn('Server fetch notice:', err);
+    }
 
     // 1b. If server API returned nothing (e.g. static hosting on GitHub Pages / Vercel), load static JSON
     if (serverReports.length === 0) {
@@ -264,40 +266,47 @@ export const api = {
       } catch {}
     }
 
-    // 2. Fetch from Firestore cloud database if quota and connection allow
+    // 2. Fetch from Firestore cloud database with 3-second timeout protection
     let firestoreList: SosialisasiReport[] = [];
     try {
-      const fsRes = await getReportsFromFirestore();
+      const fsPromise = getReportsFromFirestore();
+      const timeoutPromise = new Promise<SosialisasiReport[]>((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore read timeout')), 3000)
+      );
+      const fsRes = await Promise.race([fsPromise, timeoutPromise]);
       if (Array.isArray(fsRes) && fsRes.length > 0) {
         firestoreList = fsRes;
       }
     } catch (e) {
-      console.warn('Firestore cloud fetch warning (using local/server storage):', e);
+      console.warn('Firestore cloud fetch notice (serving via server & local cache):', e);
     }
 
-    // 3. Merge uniquely starting with bundled baseline INITIAL_REPORTS (guarantees all 49 reports are present)
+    // 3. Merge uniquely by timestamp across all sources (baseline, local, firestore, and live server)
     const idMap = new Map<string, SosialisasiReport>();
 
-    // Baseline 49 reports
-    INITIAL_REPORTS.forEach((r) => {
-      if (!deletedSet.has(r.id)) idMap.set(r.id, r);
-    });
+    const mergeItem = (item: SosialisasiReport) => {
+      if (!item || !item.id || deletedSet.has(item.id)) return;
+      const existing = idMap.get(item.id);
+      if (!existing) {
+        idMap.set(item.id, item);
+      } else {
+        const existingTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+        const incomingTime = new Date(item.updatedAt || item.createdAt || 0).getTime();
+        if (incomingTime >= existingTime) {
+          idMap.set(item.id, { ...existing, ...item });
+        }
+      }
+    };
 
-    // Local cached reports
+    // Baseline reports ensure baseline data is present
+    INITIAL_REPORTS.forEach(mergeItem);
+    // Local device cache
     const local = getLocalReports();
-    local.forEach((r) => {
-      if (!deletedSet.has(r.id)) idMap.set(r.id, r);
-    });
-
-    // Server / static reports
-    serverReports.forEach((r) => {
-      if (!deletedSet.has(r.id)) idMap.set(r.id, r);
-    });
-
-    // Firestore reports
-    firestoreList.forEach((r) => {
-      if (!deletedSet.has(r.id)) idMap.set(r.id, r);
-    });
+    local.forEach(mergeItem);
+    // Cloud database if available
+    firestoreList.forEach(mergeItem);
+    // Server reports take priority for live cross-device sync
+    serverReports.forEach(mergeItem);
 
     const merged = Array.from(idMap.values());
     merged.sort((a, b) => new Date(b.createdAt || b.tanggalKunjungan).getTime() - new Date(a.createdAt || a.tanggalKunjungan).getTime());
@@ -309,6 +318,39 @@ export const api = {
       );
     }
     return merged;
+  },
+
+  exportReportsToJson(): string {
+    const reports = getLocalReports();
+    return JSON.stringify(reports, null, 2);
+  },
+
+  async importReportsFromJson(jsonStr: string): Promise<number> {
+    const parsed = JSON.parse(jsonStr);
+    if (!Array.isArray(parsed)) throw new Error('Format JSON tidak valid: diharapkan array laporan');
+    const valid: SosialisasiReport[] = parsed.filter((r) => r && r.id && r.sekolah);
+    if (valid.length === 0) throw new Error('Tidak ada data laporan valid ditemukan dalam file');
+
+    const current = getLocalReports();
+    const map = new Map<string, SosialisasiReport>();
+    current.forEach((r) => map.set(r.id, r));
+    valid.forEach((r) => map.set(r.id, r));
+    const merged = Array.from(map.values());
+    saveLocalReports(merged);
+
+    try {
+      await fetch('/api/reports/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reports: valid }),
+      });
+    } catch {}
+
+    try {
+      await saveBatchReportsToFirestore(valid);
+    } catch {}
+
+    return valid.length;
   },
 
   async createReport(
@@ -333,12 +375,9 @@ export const api = {
         : (data.dokumentasiUrl ? [String(data.dokumentasiUrl)] : []),
       createdAt: now,
       updatedAt: now,
-      picRoadshow: data.picRoadshow ? data.picRoadshow.trim() : '',
-      daerahRoadshow: data.daerahRoadshow ? data.daerahRoadshow.trim() : (data.kabupatenKota ? data.kabupatenKota.trim() : ''),
-      isJabodetabek: Boolean(data.isJabodetabek || (data.wilayah && data.wilayah.toLowerCase() === 'jabodetabek')),
     };
 
-    // Save locally first so it is immediately responsive
+    // 1. Save locally in device storage first for instant responsiveness
     const current = getLocalReports();
     const existingIdx = current.findIndex((r) => r.id === newReport.id);
     if (existingIdx >= 0) {
@@ -349,21 +388,33 @@ export const api = {
     saveLocalReports(current);
     syncDirectToFirebase(current);
 
-    // Persist to Firestore cloud database so other devices immediately receive it
+    // 2. Sync to central server immediately so ALL other devices see it
     try {
-      await saveReportToFirestore(newReport);
-    } catch (err) {
-      console.warn('Cloud database sync warning:', err);
-    }
-
-    // Also attempt server sync in background (if full-stack server is running)
-    try {
-      await fetch('/api/reports', {
+      const serverRes = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newReport),
       });
-    } catch {}
+      if (serverRes.ok) {
+        const json = await serverRes.json();
+        if (json.data && json.data.id) {
+          // Confirm updated
+        }
+      }
+    } catch (err) {
+      console.warn('Server sync notice:', err);
+    }
+
+    // 3. Persist to Firestore cloud database with timeout protection
+    try {
+      const fsWrite = saveReportToFirestore(newReport);
+      const fsTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore write timeout')), 2500)
+      );
+      await Promise.race([fsWrite, fsTimeout]);
+    } catch (err) {
+      console.warn('Firestore cloud sync notice:', err);
+    }
 
     return newReport;
   },
@@ -396,9 +447,6 @@ export const api = {
           : (r.dokumentasiUrl ? [String(r.dokumentasiUrl)] : []),
         createdAt: now,
         updatedAt: now,
-        picRoadshow: r.picRoadshow ? r.picRoadshow.trim() : '',
-        daerahRoadshow: r.daerahRoadshow ? r.daerahRoadshow.trim() : (r.kabupatenKota ? r.kabupatenKota.trim() : ''),
-        isJabodetabek: Boolean(r.isJabodetabek || (r.wilayah && r.wilayah.toLowerCase() === 'jabodetabek')),
       }));
 
     if (newItems.length === 0) {
@@ -411,21 +459,27 @@ export const api = {
     saveLocalReports(current);
     syncDirectToFirebase(current);
 
-    // 2. Persist to Firestore cloud database in an atomic batch
-    try {
-      await saveBatchReportsToFirestore(newItems);
-    } catch (err) {
-      console.warn('Cloud database batch sync warning:', err);
-    }
-
-    // 3. Also try server backend if available
+    // 2. Immediately sync batch to server
     try {
       await fetch('/api/reports/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reports: newItems }),
       });
-    } catch {}
+    } catch (err) {
+      console.warn('Server batch sync notice:', err);
+    }
+
+    // 3. Persist to Firestore cloud database with timeout protection
+    try {
+      const fsWrite = saveBatchReportsToFirestore(newItems);
+      const fsTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore batch timeout')), 3000)
+      );
+      await Promise.race([fsWrite, fsTimeout]);
+    } catch (err) {
+      console.warn('Cloud database batch sync notice:', err);
+    }
 
     return newItems;
   },
@@ -446,12 +500,7 @@ export const api = {
     saveLocalReports(current);
     syncDirectToFirebase(current);
 
-    try {
-      await updateReportInFirestore(id, updated);
-    } catch (err) {
-      console.warn('Cloud update warning:', err);
-    }
-
+    // 1. Immediately update server backend
     try {
       await fetch(`/api/reports/${id}`, {
         method: 'PUT',
@@ -459,6 +508,17 @@ export const api = {
         body: JSON.stringify(data),
       });
     } catch {}
+
+    // 2. Persist to Firestore with timeout protection
+    try {
+      const fsWrite = updateReportInFirestore(id, updated);
+      const fsTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore update timeout')), 2500)
+      );
+      await Promise.race([fsWrite, fsTimeout]);
+    } catch (err) {
+      console.warn('Cloud update notice:', err);
+    }
 
     return updated;
   },
